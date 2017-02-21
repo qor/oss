@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-// Interface define common API to operate storage
-type Interface interface {
+// StorageInterface define common API to operate storage
+type StorageInterface interface {
 	Store(path string, reader io.Reader) (Object, error)
 	Retrieve(path string) (*os.File, error)
 	ListObjects(path string) ([]Object, error)
@@ -15,13 +15,14 @@ type Interface interface {
 
 // Object content object
 type Object struct {
-	Path         string
-	Name         string
-	LastModified *time.Time
-	IsDir        bool
+	Path             string
+	Name             string
+	LastModified     *time.Time
+	IsDir            bool
+	StorageInterface StorageInterface
 }
 
 // Retrieve retrieve object's content
-func (object Object) Retrieve(i Interface) (*os.File, error) {
-	return i.Retrieve(object.Path)
+func (object Object) Retrieve() (*os.File, error) {
+	return object.StorageInterface.Retrieve(object.Path)
 }
