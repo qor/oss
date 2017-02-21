@@ -9,6 +9,7 @@ import (
 // StorageInterface define common API to operate storage
 type StorageInterface interface {
 	Store(path string, reader io.Reader) (Object, error)
+	Delete(path string) error
 	Retrieve(path string) (*os.File, error)
 	ListObjects(path string) ([]Object, error)
 }
