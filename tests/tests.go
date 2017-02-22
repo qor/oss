@@ -13,7 +13,7 @@ import (
 
 func TestAll(storage oss.StorageInterface, t *testing.T) {
 	randomPath := strings.Replace(time.Now().Format("20060102150506.000"), ".", "", -1)
-	fileName := filepath.Join(randomPath, "sample.txt")
+	fileName := "/" + filepath.Join(randomPath, "sample.txt")
 	exceptObjects := 1
 	sampleFile, _ := filepath.Abs("../tests/sample.txt")
 
@@ -53,7 +53,7 @@ func TestAll(storage oss.StorageInterface, t *testing.T) {
 		}
 
 		if !found {
-			t.Errorf("Should found uploaded file")
+			t.Errorf("Should found uploaded file %v", fileName)
 		}
 	}
 

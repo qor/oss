@@ -1,9 +1,11 @@
 package filesystem
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/qor/oss"
 )
@@ -15,14 +17,18 @@ type FileSystem struct {
 
 // New initialize FileSystem storage
 func New(base string) *FileSystem {
-	return &FileSystem{Base: base}
+	absbase, err := filepath.Abs(base)
+	if err != nil {
+		fmt.Println("FileSystem storage's directory haven't been initialized")
+	}
+	return &FileSystem{Base: absbase}
 }
 
 // GetFullPath get full path from absolute/relative path
 func (fileSystem FileSystem) GetFullPath(path string) string {
 	fullpath := path
-	if !filepath.IsAbs(path) {
-		fullpath, _ = filepath.Rel(fileSystem.Base, path)
+	if !strings.HasPrefix(path, fileSystem.Base) {
+		fullpath, _ = filepath.Abs(filepath.Join(fileSystem.Base, path))
 	}
 	return fullpath
 }
@@ -34,7 +40,15 @@ func (fileSystem FileSystem) Get(path string) (*os.File, error) {
 
 // Put store a reader into given path
 func (fileSystem FileSystem) Put(path string, reader io.ReadSeeker) (*oss.Object, error) {
-	fullpath := fileSystem.GetFullPath(path)
+	var (
+		fullpath = fileSystem.GetFullPath(path)
+		err      = os.MkdirAll(filepath.Dir(fullpath), os.ModePerm)
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
 	dst, err := os.Create(fullpath)
 
 	if err == nil {
@@ -52,13 +66,20 @@ func (fileSystem FileSystem) Delete(path string) error {
 
 // List list all objects under current path
 func (fileSystem FileSystem) List(path string) ([]*oss.Object, error) {
-	var objects []*oss.Object
+	var (
+		objects  []*oss.Object
+		fullpath = fileSystem.GetFullPath(path)
+	)
 
-	filepath.Walk(fileSystem.GetFullPath(path), func(path string, info os.FileInfo, err error) error {
+	filepath.Walk(fullpath, func(path string, info os.FileInfo, err error) error {
+		if path == fullpath {
+			return nil
+		}
+
 		if err == nil {
 			modTime := info.ModTime()
 			objects = append(objects, &oss.Object{
-				Path:             path,
+				Path:             strings.TrimPrefix(path, fileSystem.Base),
 				Name:             info.Name(),
 				LastModified:     &modTime,
 				IsDir:            info.IsDir(),
