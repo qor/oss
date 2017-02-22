@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -79,9 +80,11 @@ func (client Client) Get(path string) (file *os.File, err error) {
 		Key:    aws.String(path),
 	})
 
-	if file, err = ioutil.TempFile("/tmp", "s3"); err == nil {
-		_, err = io.Copy(file, getResponse.Body)
-		file.Seek(0, 0)
+	if err == nil {
+		if file, err = ioutil.TempFile("/tmp", "s3"); err == nil {
+			_, err = io.Copy(file, getResponse.Body)
+			file.Seek(0, 0)
+		}
 	}
 
 	return file, err
@@ -100,7 +103,7 @@ func (client Client) Put(path string, reader io.ReadSeeker) (*oss.Object, error)
 
 	now := time.Now()
 	return &oss.Object{
-		Path:             path,
+		Path:             toRelativePath(path),
 		Name:             filepath.Base(path),
 		LastModified:     &now,
 		StorageInterface: client,
@@ -111,7 +114,7 @@ func (client Client) Put(path string, reader io.ReadSeeker) (*oss.Object, error)
 func (client Client) Delete(path string) error {
 	_, err := client.S3.DeleteObject(&s3.DeleteObjectInput{
 		Bucket: aws.String(client.Config.Bucket),
-		Path:   aws.String(path),
+		Key:    aws.String(path),
 	})
 	return err
 }
@@ -127,8 +130,8 @@ func (client Client) List(path string) ([]*oss.Object, error) {
 
 	if err == nil {
 		for _, content := range listObjectsResponse.Contents {
-			objects = append(objects, oss.Object{
-				Path:             *content.Key,
+			objects = append(objects, &oss.Object{
+				Path:             toRelativePath(*content.Key),
 				Name:             filepath.Base(*content.Key),
 				LastModified:     content.LastModified,
 				StorageInterface: client,
@@ -137,4 +140,8 @@ func (client Client) List(path string) ([]*oss.Object, error) {
 	}
 
 	return objects, err
+}
+
+func toRelativePath(path string) string {
+	return "/" + strings.TrimPrefix(path, "/")
 }
