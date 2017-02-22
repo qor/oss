@@ -76,13 +76,12 @@ func (fileSystem FileSystem) List(path string) ([]*oss.Object, error) {
 			return nil
 		}
 
-		if err == nil {
+		if err == nil && !info.IsDir() {
 			modTime := info.ModTime()
 			objects = append(objects, &oss.Object{
 				Path:             strings.TrimPrefix(path, fileSystem.Base),
 				Name:             info.Name(),
 				LastModified:     &modTime,
-				IsDir:            info.IsDir(),
 				StorageInterface: fileSystem,
 			})
 		}

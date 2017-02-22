@@ -19,7 +19,6 @@ type Object struct {
 	Path             string
 	Name             string
 	LastModified     *time.Time
-	IsDir            bool
 	StorageInterface StorageInterface
 }
 

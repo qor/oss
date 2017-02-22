@@ -14,12 +14,23 @@ import (
 func TestAll(storage oss.StorageInterface, t *testing.T) {
 	randomPath := strings.Replace(time.Now().Format("20060102150506.000"), ".", "", -1)
 	fileName := "/" + filepath.Join(randomPath, "sample.txt")
-	exceptObjects := 1
+	fileName2 := "/" + filepath.Join(randomPath, "sample2", "sample.txt")
+	exceptObjects := 2
 	sampleFile, _ := filepath.Abs("../tests/sample.txt")
 
 	// Put file
 	if file, err := os.Open(sampleFile); err == nil {
 		if object, err := storage.Put(fileName, file); err != nil {
+			t.Errorf("No error should happen when save sample file, but got %v", err)
+		} else if object.Path == "" || object.StorageInterface == nil {
+			t.Errorf("returned object should necessary information")
+		}
+	} else {
+		t.Errorf("No error should happen when opem sample file, but got %v", err)
+	}
+
+	if file, err := os.Open(sampleFile); err == nil {
+		if object, err := storage.Put(fileName2, file); err != nil {
 			t.Errorf("No error should happen when save sample file, but got %v", err)
 		} else if object.Path == "" || object.StorageInterface == nil {
 			t.Errorf("returned object should necessary information")
@@ -45,15 +56,23 @@ func TestAll(storage oss.StorageInterface, t *testing.T) {
 	} else if len(objects) != exceptObjects {
 		t.Errorf("Should found %v objects, but got %v", exceptObjects, len(objects))
 	} else {
-		var found bool
+		var found1, found2 bool
 		for _, object := range objects {
 			if object.Path == fileName {
-				found = true
+				found1 = true
+			}
+
+			if object.Path == fileName2 {
+				found2 = true
 			}
 		}
 
-		if !found {
+		if !found1 {
 			t.Errorf("Should found uploaded file %v", fileName)
+		}
+
+		if !found2 {
+			t.Errorf("Should found uploaded file %v", fileName2)
 		}
 	}
 

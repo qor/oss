@@ -77,7 +77,7 @@ func New(config Config) *Client {
 func (client Client) Get(path string) (file *os.File, err error) {
 	getResponse, err := client.S3.GetObject(&s3.GetObjectInput{
 		Bucket: aws.String(client.Config.Bucket),
-		Key:    aws.String(path),
+		Key:    aws.String(toRelativePath(path)),
 	})
 
 	if err == nil {
@@ -114,7 +114,7 @@ func (client Client) Put(path string, reader io.ReadSeeker) (*oss.Object, error)
 func (client Client) Delete(path string) error {
 	_, err := client.S3.DeleteObject(&s3.DeleteObjectInput{
 		Bucket: aws.String(client.Config.Bucket),
-		Key:    aws.String(path),
+		Key:    aws.String(toRelativePath(path)),
 	})
 	return err
 }
