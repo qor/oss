@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -13,6 +14,8 @@ import (
 
 func TestAll(storage oss.StorageInterface, t *testing.T) {
 	randomPath := strings.Replace(time.Now().Format("20060102150506.000"), ".", "", -1)
+	fmt.Printf("random directory is %v\n", randomPath)
+
 	fileName := "/" + filepath.Join(randomPath, "sample.txt")
 	fileName2 := "/" + filepath.Join(randomPath, "sample2", "sample.txt")
 	exceptObjects := 2
@@ -84,5 +87,10 @@ func TestAll(storage oss.StorageInterface, t *testing.T) {
 	// Get file after delete
 	if _, err := storage.Get(fileName); err == nil {
 		t.Errorf("There should be an error when get deleted sample file")
+	}
+
+	// Get file after delete
+	if _, err := storage.Get(fileName2); err != nil {
+		t.Errorf("Sample file 2 should no been deleted")
 	}
 }
