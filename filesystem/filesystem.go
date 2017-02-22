@@ -33,11 +33,12 @@ func (fileSystem FileSystem) Get(path string) (*os.File, error) {
 }
 
 // Put store a reader into given path
-func (fileSystem FileSystem) Put(path string, reader io.Reader) (oss.Object, error) {
+func (fileSystem FileSystem) Put(path string, reader io.ReadSeeker) (*oss.Object, error) {
 	fullpath := fileSystem.GetFullPath(path)
 	dst, err := os.Create(fullpath)
 
 	if err == nil {
+		reader.Seek(0, 0)
 		_, err = io.Copy(dst, reader)
 	}
 
@@ -50,13 +51,13 @@ func (fileSystem FileSystem) Delete(path string) error {
 }
 
 // List list all objects under current path
-func (fileSystem FileSystem) List(path string) ([]oss.Object, error) {
-	var objects []oss.Object
+func (fileSystem FileSystem) List(path string) ([]*oss.Object, error) {
+	var objects []*oss.Object
 
 	filepath.Walk(fileSystem.GetFullPath(path), func(path string, info os.FileInfo, err error) error {
 		if err == nil {
 			modTime := info.ModTime()
-			objects = append(objects, oss.Object{
+			objects = append(objects, &oss.Object{
 				Path:             path,
 				Name:             info.Name(),
 				LastModified:     &modTime,
