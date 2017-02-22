@@ -8,10 +8,10 @@ import (
 
 // StorageInterface define common API to operate storage
 type StorageInterface interface {
-	Store(path string, reader io.Reader) (Object, error)
+	Get(path string) (*os.File, error)
+	Put(path string, reader io.Reader) (Object, error)
 	Delete(path string) error
-	Retrieve(path string) (*os.File, error)
-	ListObjects(path string) ([]Object, error)
+	List(path string) ([]Object, error)
 }
 
 // Object content object
@@ -23,7 +23,7 @@ type Object struct {
 	StorageInterface StorageInterface
 }
 
-// Retrieve retrieve object's content
-func (object Object) Retrieve() (*os.File, error) {
-	return object.StorageInterface.Retrieve(object.Path)
+// Get retrieve object's content
+func (object Object) Get() (*os.File, error) {
+	return object.StorageInterface.Get(object.Path)
 }

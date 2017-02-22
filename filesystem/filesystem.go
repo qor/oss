@@ -27,8 +27,13 @@ func (fileSystem FileSystem) GetFullPath(path string) string {
 	return fullpath
 }
 
-// Store store a reader into given path
-func (fileSystem FileSystem) Store(path string, reader io.Reader) (oss.Object, error) {
+// Get receive file with given path
+func (fileSystem FileSystem) Get(path string) (*os.File, error) {
+	return os.Open(fileSystem.GetFullPath(path))
+}
+
+// Put store a reader into given path
+func (fileSystem FileSystem) Put(path string, reader io.Reader) (oss.Object, error) {
 	fullpath := fileSystem.GetFullPath(path)
 	dst, err := os.Create(fullpath)
 
@@ -44,13 +49,8 @@ func (fileSystem FileSystem) Delete(path string) error {
 	return os.Remove(fileSystem.GetFullPath(path))
 }
 
-// Retrieve receive file with given path
-func (fileSystem FileSystem) Retrieve(path string) (*os.File, error) {
-	return os.Open(fileSystem.GetFullPath(path))
-}
-
-// ListObjects list all objects under current path
-func (fileSystem FileSystem) ListObjects(path string) ([]oss.Object, error) {
+// List list all objects under current path
+func (fileSystem FileSystem) List(path string) ([]oss.Object, error) {
 	var objects []oss.Object
 
 	filepath.Walk(fileSystem.GetFullPath(path), func(path string, info os.FileInfo, err error) error {
