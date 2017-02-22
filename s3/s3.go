@@ -4,8 +4,10 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -77,7 +79,7 @@ func New(config Config) *Client {
 func (client Client) Get(path string) (file *os.File, err error) {
 	getResponse, err := client.S3.GetObject(&s3.GetObjectInput{
 		Bucket: aws.String(client.Config.Bucket),
-		Key:    aws.String(toRelativePath(path)),
+		Key:    aws.String(client.ToRelativePath(path)),
 	})
 
 	if err == nil {
@@ -103,7 +105,7 @@ func (client Client) Put(path string, reader io.ReadSeeker) (*oss.Object, error)
 
 	now := time.Now()
 	return &oss.Object{
-		Path:             toRelativePath(path),
+		Path:             client.ToRelativePath(path),
 		Name:             filepath.Base(path),
 		LastModified:     &now,
 		StorageInterface: client,
@@ -114,7 +116,7 @@ func (client Client) Put(path string, reader io.ReadSeeker) (*oss.Object, error)
 func (client Client) Delete(path string) error {
 	_, err := client.S3.DeleteObject(&s3.DeleteObjectInput{
 		Bucket: aws.String(client.Config.Bucket),
-		Key:    aws.String(toRelativePath(path)),
+		Key:    aws.String(client.ToRelativePath(path)),
 	})
 	return err
 }
@@ -131,7 +133,7 @@ func (client Client) List(path string) ([]*oss.Object, error) {
 	if err == nil {
 		for _, content := range listObjectsResponse.Contents {
 			objects = append(objects, &oss.Object{
-				Path:             toRelativePath(*content.Key),
+				Path:             client.ToRelativePath(*content.Key),
 				Name:             filepath.Base(*content.Key),
 				LastModified:     content.LastModified,
 				StorageInterface: client,
@@ -142,6 +144,14 @@ func (client Client) List(path string) ([]*oss.Object, error) {
 	return objects, err
 }
 
-func toRelativePath(path string) string {
-	return "/" + strings.TrimPrefix(path, "/")
+var urlRegexp = regexp.MustCompile(`(https?:)?//((\w+).)+(\w+)/`)
+
+func (client Client) ToRelativePath(urlPath string) string {
+	if urlRegexp.MatchString(urlPath) {
+		if u, err := url.Parse(urlPath); err == nil {
+			return u.Path
+		}
+	}
+
+	return "/" + strings.TrimPrefix(urlPath, "/")
 }

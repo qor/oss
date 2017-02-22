@@ -15,10 +15,31 @@ type Config struct {
 	Bucket    string `env:"QOR_AWS_BUCKET"`
 }
 
-func TestAll(t *testing.T) {
+var client *s3.Client
+
+func init() {
 	config := Config{}
 	configor.Load(&config)
 
-	client := s3.New(s3.Config{AccessID: config.AccessID, AccessKey: config.AccessKey, Region: config.Region, Bucket: config.Bucket})
+	client = s3.New(s3.Config{AccessID: config.AccessID, AccessKey: config.AccessKey, Region: config.Region, Bucket: config.Bucket})
+}
+
+func TestAll(t *testing.T) {
 	tests.TestAll(client, t)
+}
+
+func TestToRelativePath(t *testing.T) {
+	urlMap := map[string]string{
+		"https://mybucket.s3.amazonaws.com/myobject.ext": "/myobject.ext",
+		"https://qor-example.com/myobject.ext":           "/myobject.ext",
+		"//mybucket.s3.amazonaws.com/myobject.ext":       "/myobject.ext",
+		"http://mybucket.s3.amazonaws.com/myobject.ext":  "/myobject.ext",
+		"myobject.ext":                                   "/myobject.ext",
+	}
+
+	for url, path := range urlMap {
+		if client.ToRelativePath(url) != path {
+			t.Errorf("%v's relative path should be %v, but got %v", url, path, client.ToRelativePath(url))
+		}
+	}
 }
