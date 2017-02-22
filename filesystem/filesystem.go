@@ -42,7 +42,7 @@ func (fileSystem FileSystem) Put(path string, reader io.ReadSeeker) (*oss.Object
 		_, err = io.Copy(dst, reader)
 	}
 
-	return oss.Object{Path: path, Name: filepath.Base(path), StorageInterface: fileSystem}, err
+	return &oss.Object{Path: path, Name: filepath.Base(path), StorageInterface: fileSystem}, err
 }
 
 // Delete delete file
