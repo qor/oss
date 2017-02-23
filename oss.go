@@ -12,6 +12,7 @@ type StorageInterface interface {
 	Put(path string, reader io.Reader) (*Object, error)
 	Delete(path string) error
 	List(path string) ([]*Object, error)
+	GetEndpoint() string
 }
 
 // Object content object

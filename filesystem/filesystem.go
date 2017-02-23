@@ -92,3 +92,8 @@ func (fileSystem FileSystem) List(path string) ([]*oss.Object, error) {
 
 	return objects, nil
 }
+
+// GetEndpoint get endpoint, FileSystem's endpoint is /
+func (fileSystem FileSystem) GetEndpoint() string {
+	return "/"
+}

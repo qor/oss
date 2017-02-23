@@ -34,6 +34,7 @@ type Config struct {
 	Bucket       string
 	SessionToken string
 	ACL          string
+	Endpoint     string
 }
 
 func EC2RoleAwsConfig(config Config) *aws.Config {
@@ -142,6 +143,20 @@ func (client Client) List(path string) ([]*oss.Object, error) {
 	}
 
 	return objects, err
+}
+
+// GetEndpoint get endpoint, FileSystem's endpoint is /
+func (client Client) GetEndpoint() string {
+	if client.Config.Endpoint != "" {
+		return client.Config.Endpoint
+	}
+
+	endpoint := client.S3.Endpoint
+	for _, prefix := range []string{"https://", "http://"} {
+		endpoint = strings.TrimPrefix(endpoint, prefix)
+	}
+
+	return client.Config.Bucket + "." + endpoint
 }
 
 var urlRegexp = regexp.MustCompile(`(https?:)?//((\w+).)+(\w+)/`)

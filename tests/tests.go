@@ -93,4 +93,6 @@ func TestAll(storage oss.StorageInterface, t *testing.T) {
 	if _, err := storage.Get(fileName2); err != nil {
 		t.Errorf("Sample file 2 should no been deleted")
 	}
+
+	fmt.Println(storage.GetEndpoint())
 }
