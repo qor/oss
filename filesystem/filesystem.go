@@ -39,7 +39,7 @@ func (fileSystem FileSystem) Get(path string) (*os.File, error) {
 }
 
 // Put store a reader into given path
-func (fileSystem FileSystem) Put(path string, reader io.ReadSeeker) (*oss.Object, error) {
+func (fileSystem FileSystem) Put(path string, reader io.Reader) (*oss.Object, error) {
 	var (
 		fullpath = fileSystem.GetFullPath(path)
 		err      = os.MkdirAll(filepath.Dir(fullpath), os.ModePerm)
@@ -52,7 +52,9 @@ func (fileSystem FileSystem) Put(path string, reader io.ReadSeeker) (*oss.Object
 	dst, err := os.Create(fullpath)
 
 	if err == nil {
-		reader.Seek(0, 0)
+		if seeker, ok := reader.(io.ReadSeeker); ok {
+			seeker.Seek(0, 0)
+		}
 		_, err = io.Copy(dst, reader)
 	}
 

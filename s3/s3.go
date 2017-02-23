@@ -93,12 +93,12 @@ func (client Client) Get(path string) (file *os.File, err error) {
 }
 
 // Put store a reader into given path
-func (client Client) Put(path string, reader io.ReadSeeker) (*oss.Object, error) {
+func (client Client) Put(path string, reader io.Reader) (*oss.Object, error) {
 	params := &s3.PutObjectInput{
 		Bucket: aws.String(client.Config.Bucket), // required
 		Key:    aws.String(path),                 // required
 		ACL:    aws.String(client.Config.ACL),
-		Body:   reader,
+		Body:   aws.ReadSeekCloser(reader),
 	}
 
 	_, err := client.S3.PutObject(params)
