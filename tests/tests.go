@@ -14,7 +14,7 @@ import (
 
 func TestAll(storage oss.StorageInterface, t *testing.T) {
 	randomPath := strings.Replace(time.Now().Format("20060102150506.000"), ".", "", -1)
-	fmt.Printf("random directory is %v\n", randomPath)
+	fmt.Printf("testing file in %v\n", filepath.Join(storage.GetEndpoint(), randomPath))
 
 	fileName := "/" + filepath.Join(randomPath, "sample.txt")
 	fileName2 := "/" + filepath.Join(randomPath, "sample2", "sample.txt")
@@ -93,6 +93,4 @@ func TestAll(storage oss.StorageInterface, t *testing.T) {
 	if _, err := storage.Get(fileName2); err != nil {
 		t.Errorf("Sample file 2 should no been deleted")
 	}
-
-	fmt.Println(storage.GetEndpoint())
 }

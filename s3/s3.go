@@ -1,6 +1,7 @@
 package s3
 
 import (
+	"bytes"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -23,7 +24,7 @@ import (
 // Client S3 storage
 type Client struct {
 	*s3.S3
-	Config Config
+	Config *Config
 }
 
 // Config S3 client config
@@ -55,11 +56,11 @@ func EC2RoleAwsConfig(config Config) *aws.Config {
 
 // New initialize S3 storage
 func New(config Config) *Client {
-	client := &Client{Config: config}
-
 	if config.ACL == "" {
 		config.ACL = s3.BucketCannedACLPublicRead
 	}
+
+	client := &Client{Config: &config}
 
 	if config.AccessID == "" && config.AccessKey == "" {
 		client.S3 = s3.New(session.New(), EC2RoleAwsConfig(config))
@@ -94,20 +95,28 @@ func (client Client) Get(path string) (file *os.File, err error) {
 }
 
 // Put store a reader into given path
-func (client Client) Put(path string, reader io.Reader) (*oss.Object, error) {
-	params := &s3.PutObjectInput{
-		Bucket: aws.String(client.Config.Bucket), // required
-		Key:    aws.String(path),                 // required
-		ACL:    aws.String(client.Config.ACL),
-		Body:   aws.ReadSeekCloser(reader),
+func (client Client) Put(urlPath string, reader io.Reader) (*oss.Object, error) {
+	if seeker, ok := reader.(io.ReadSeeker); ok {
+		seeker.Seek(0, 0)
 	}
 
-	_, err := client.S3.PutObject(params)
+	urlPath = client.ToRelativePath(urlPath)
+	buffer, err := ioutil.ReadAll(reader)
+
+	params := &s3.PutObjectInput{
+		Bucket:        aws.String(client.Config.Bucket), // required
+		Key:           aws.String(urlPath),              // required
+		ACL:           aws.String(client.Config.ACL),
+		Body:          bytes.NewReader(buffer),
+		ContentLength: aws.Int64(int64(len(buffer))),
+	}
+
+	_, err = client.S3.PutObject(params)
 
 	now := time.Now()
 	return &oss.Object{
-		Path:             client.ToRelativePath(path),
-		Name:             filepath.Base(path),
+		Path:             urlPath,
+		Name:             filepath.Base(urlPath),
 		LastModified:     &now,
 		StorageInterface: client,
 	}, err
