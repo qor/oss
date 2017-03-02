@@ -21,7 +21,7 @@ func init() {
 	config := Config{}
 	configor.Load(&config)
 
-	client = s3.New(s3.Config{AccessID: config.AccessID, AccessKey: config.AccessKey, Region: config.Region, Bucket: config.Bucket})
+	client = s3.New(&s3.Config{AccessID: config.AccessID, AccessKey: config.AccessKey, Region: config.Region, Bucket: config.Bucket})
 }
 
 func TestAll(t *testing.T) {
