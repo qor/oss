@@ -38,7 +38,7 @@ type Config struct {
 	Endpoint     string
 }
 
-func EC2RoleAwsConfig(config Config) *aws.Config {
+func EC2RoleAwsConfig(config *Config) *aws.Config {
 	ec2m := ec2metadata.New(session.New(), &aws.Config{
 		HTTPClient: &http.Client{Timeout: 10 * time.Second},
 		Endpoint:   aws.String("http://169.254.169.254/latest"),
@@ -49,18 +49,18 @@ func EC2RoleAwsConfig(config Config) *aws.Config {
 	})
 
 	return &aws.Config{
-		Region:      &config.Region,
+		Region:      aws.String(config.Region),
 		Credentials: cr,
 	}
 }
 
 // New initialize S3 storage
-func New(config Config) *Client {
+func New(config *Config) *Client {
 	if config.ACL == "" {
 		config.ACL = s3.BucketCannedACLPublicRead
 	}
 
-	client := &Client{Config: &config}
+	client := &Client{Config: config}
 
 	if config.AccessID == "" && config.AccessKey == "" {
 		client.S3 = s3.New(session.New(), EC2RoleAwsConfig(config))
