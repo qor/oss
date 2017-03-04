@@ -137,7 +137,7 @@ func (client Client) List(path string) ([]*oss.Object, error) {
 
 	listObjectsResponse, err := client.S3.ListObjectsV2(&s3.ListObjectsV2Input{
 		Bucket: aws.String(client.Config.Bucket),
-		Prefix: aws.String(path),
+		Prefix: aws.String(strings.TrimPrefix(path, "/")),
 	})
 
 	if err == nil {
