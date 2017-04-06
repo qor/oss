@@ -8,10 +8,11 @@ QOR OSS provide common interface to operate files in cloud storage, ftp, filesys
 import (
 	"github.com/oss/filesystem"
 	"github.com/oss/s3"
+	awss3 "github.com/aws/aws-sdk-go/s3"
 )
 
 func main() {
-	storage := s3.New(s3.Config{AccessID: "access_id", AccessKey: "access_key", Region: "region", Bucket: "bucket", Endpoint: "cdn.getqor.com", ACL: aws.BucketCannedACLPublicRead})
+	storage := s3.New(s3.Config{AccessID: "access_id", AccessKey: "access_key", Region: "region", Bucket: "bucket", Endpoint: "cdn.getqor.com", ACL: awss3.BucketCannedACLPublicRead})
 	// storage := filesystem.New("/tmp")
 
 	// Save a reader interface into storage
