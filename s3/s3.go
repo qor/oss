@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"io"
 	"io/ioutil"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -103,12 +105,18 @@ func (client Client) Put(urlPath string, reader io.Reader) (*oss.Object, error) 
 	urlPath = client.ToRelativePath(urlPath)
 	buffer, err := ioutil.ReadAll(reader)
 
+	fileType := mime.TypeByExtension(path.Ext(urlPath))
+	if fileType == "" {
+		fileType = http.DetectContentType(buffer)
+	}
+
 	params := &s3.PutObjectInput{
 		Bucket:        aws.String(client.Config.Bucket), // required
 		Key:           aws.String(urlPath),              // required
 		ACL:           aws.String(client.Config.ACL),
 		Body:          bytes.NewReader(buffer),
 		ContentLength: aws.Int64(int64(len(buffer))),
+		ContentType:   aws.String(fileType),
 	}
 
 	_, err = client.S3.PutObject(params)
