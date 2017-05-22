@@ -142,10 +142,15 @@ func (client Client) Delete(path string) error {
 // List list all objects under current path
 func (client Client) List(path string) ([]*oss.Object, error) {
 	var objects []*oss.Object
+	var prefix string
+
+	if path != "" {
+		prefix = strings.Trim(path, "/") + "/"
+	}
 
 	listObjectsResponse, err := client.S3.ListObjectsV2(&s3.ListObjectsV2Input{
 		Bucket: aws.String(client.Config.Bucket),
-		Prefix: aws.String(strings.Trim(path, "/") + "/"),
+		Prefix: aws.String(prefix),
 	})
 
 	if err == nil {
