@@ -87,10 +87,9 @@ func (client Client) Get(path string) (file *os.File, err error) {
 	})
 
 	if err == nil {
-		if file, err = ioutil.TempFile("/tmp", "s3"); err == nil {
-			_, err = io.Copy(file, getResponse.Body)
-			file.Seek(0, 0)
-		}
+		file, err = os.Create(filepath.Base(path))
+		_, err = io.Copy(file, getResponse.Body)
+		file.Seek(0, 0)
 	}
 
 	return file, err
