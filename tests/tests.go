@@ -84,6 +84,8 @@ func TestAll(storage oss.StorageInterface, t *testing.T) {
 		t.Errorf("No error should happen when delete sample file, but got %v", err)
 	}
 
+	time.Sleep(500 * time.Millisecond)
+
 	// Get file after delete
 	if _, err := storage.Get(fileName); err == nil {
 		t.Errorf("There should be an error when get deleted sample file")
