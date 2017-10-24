@@ -9,34 +9,54 @@ import (
 )
 
 type Config struct {
-	AccessID  string `env:"QOR_QINIU_ACCESS_KEY_ID"`
-	AccessKey string `env:"QOR_QINIU_SECRET_ACCESS_KEY"`
-	Region    string `env:"QOR_QINIU_REGION"`
-	Bucket    string `env:"QOR_QINIU_BUCKET"`
-	Endpoint  string `env:"QOR_QINIU_ENDPOINT"`
+	AccessID  string
+	AccessKey string
+	Region    string
+	Bucket    string
+	Endpoint  string
+}
+
+type AppConfig struct {
+	Private Config
+	Public  Config
 }
 
 var client *qiniu.Client
+var privateClient *qiniu.Client
 
 func init() {
-	config := Config{}
-	configor.Load(&config)
-	if len(config.AccessID) == 0 {
+	config := AppConfig{}
+	configor.New(&configor.Config{ENVPrefix: "QINIU"}).Load(&config)
+	if len(config.Private.AccessID) == 0 {
 		return
 	}
 
 	client = qiniu.New(&qiniu.Config{
-		AccessID:  config.AccessID,
-		AccessKey: config.AccessKey,
-		Region:    config.Region,
-		Bucket:    config.Bucket,
-		Endpoint:  config.Endpoint,
+		AccessID:  config.Public.AccessID,
+		AccessKey: config.Public.AccessKey,
+		Region:    config.Public.Region,
+		Bucket:    config.Public.Bucket,
+		Endpoint:  config.Public.Endpoint,
+	})
+	privateClient = qiniu.New(&qiniu.Config{
+		AccessID:   config.Private.AccessID,
+		AccessKey:  config.Private.AccessKey,
+		Region:     config.Private.Region,
+		Bucket:     config.Private.Bucket,
+		Endpoint:   config.Private.Endpoint,
+		PrivateURL: true,
 	})
 }
 
 func TestAll(t *testing.T) {
 	if client == nil {
-		t.Skip("skip because of no config for QOR_QINIU_ACCESS_KEY_ID")
+		t.Skip(`skip because of no config:
+
+
+			`)
 	}
-	tests.TestAll(client, t)
+	clis := []*qiniu.Client{client, privateClient}
+	for _, cli := range clis {
+		tests.TestAll(cli, t)
+	}
 }

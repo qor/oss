@@ -27,7 +27,7 @@ type Client struct {
 	mac           *qbox.Mac
 	storageCfg    storage.Config
 	bucketManager *storage.BucketManager
-	// putPolicy
+	putPolicy     *storage.PutPolicy
 }
 
 // Config Qiniu client config
@@ -39,6 +39,7 @@ type Config struct {
 	Endpoint      string
 	UseHTTPS      bool
 	UseCdnDomains bool
+	PrivateURL    bool
 }
 
 var zonedata = map[string]*storage.Zone{
@@ -69,12 +70,17 @@ func New(config *Config) *Client {
 	return client
 }
 
+func (client Client) SetPutPolicy(putPolicy *storage.PutPolicy) {
+	client.putPolicy = putPolicy
+}
+
 // Get receive file with given path
 func (client Client) Get(path string) (file *os.File, err error) {
-	urlPath := strings.TrimPrefix(path, "/")
-
-	deadline := time.Now().Add(time.Second * 3600).Unix()
-	purl := storage.MakePrivateURL(client.mac, client.Config.Endpoint, urlPath, deadline)
+	var purl string
+	purl, err = client.GetURL(path)
+	if err != nil {
+		return
+	}
 
 	var res *http.Response
 	res, err = http.Get(purl)
@@ -105,7 +111,7 @@ func (client Client) Put(urlPath string, reader io.Reader) (r *oss.Object, err e
 		seeker.Seek(0, 0)
 	}
 
-	urlPath = stripPath(urlPath)
+	urlPath = storageKey(urlPath)
 	var buffer []byte
 	buffer, err = ioutil.ReadAll(reader)
 	if err != nil {
@@ -119,6 +125,10 @@ func (client Client) Put(urlPath string, reader io.Reader) (r *oss.Object, err e
 
 	putPolicy := storage.PutPolicy{
 		Scope: client.Config.Bucket,
+	}
+
+	if client.putPolicy != nil {
+		putPolicy = *client.putPolicy
 	}
 
 	upToken := putPolicy.UploadToken(client.mac)
@@ -146,12 +156,12 @@ func (client Client) Put(urlPath string, reader io.Reader) (r *oss.Object, err e
 
 // Delete delete file
 func (client Client) Delete(path string) error {
-	return client.bucketManager.Delete(client.Config.Bucket, stripPath(path))
+	return client.bucketManager.Delete(client.Config.Bucket, storageKey(path))
 }
 
 // List list all objects under current path
 func (client Client) List(path string) (objects []*oss.Object, err error) {
-	var prefix = stripPath(path)
+	var prefix = storageKey(path)
 	var listItems []storage.ListItem
 	listItems, _, _, _, err = client.bucketManager.ListFiles(
 		client.Config.Bucket,
@@ -168,7 +178,7 @@ func (client Client) List(path string) (objects []*oss.Object, err error) {
 	for _, content := range listItems {
 		t := time.Unix(content.PutTime, 0)
 		objects = append(objects, &oss.Object{
-			Path:             "/" + stripPath(content.Key),
+			Path:             "/" + storageKey(content.Key),
 			Name:             filepath.Base(content.Key),
 			LastModified:     &t,
 			StorageInterface: client,
@@ -180,27 +190,30 @@ func (client Client) List(path string) (objects []*oss.Object, err error) {
 
 // GetEndpoint get endpoint, FileSystem's endpoint is /
 func (client Client) GetEndpoint() string {
-	if client.Config.Endpoint != "" {
-		return client.Config.Endpoint
-	}
-
-	return ""
-	// endpoint := client.S3.Endpoint
-	// for _, prefix := range []string{"https://", "http://"} {
-	// 	endpoint = strings.TrimPrefix(endpoint, prefix)
-	// }
-
-	// return client.Config.Bucket + "." + endpoint
+	return client.Config.Endpoint
 }
 
 var urlRegexp = regexp.MustCompile(`(https?:)?//((\w+).)+(\w+)/`)
 
-func stripPath(urlPath string) string {
+func storageKey(urlPath string) string {
 	if urlRegexp.MatchString(urlPath) {
 		if u, err := url.Parse(urlPath); err == nil {
 			urlPath = u.Path
 		}
 	}
-
 	return strings.TrimPrefix(urlPath, "/")
+}
+
+func (client Client) GetURL(path string) (url string, err error) {
+	key := storageKey(path)
+
+	if client.Config.PrivateURL {
+		deadline := time.Now().Add(time.Second * 3600).Unix()
+		url = storage.MakePrivateURL(client.mac, client.Config.Endpoint, key, deadline)
+		return
+	}
+
+	url = storage.MakePublicURL(client.GetEndpoint(), key)
+
+	return
 }

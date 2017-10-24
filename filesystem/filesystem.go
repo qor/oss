@@ -97,3 +97,7 @@ func (fileSystem FileSystem) List(path string) ([]*oss.Object, error) {
 func (fileSystem FileSystem) GetEndpoint() string {
 	return "/"
 }
+
+func (fileSystem FileSystem) GetURL(path string) (url string, err error) {
+	return
+}

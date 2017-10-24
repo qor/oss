@@ -192,3 +192,7 @@ func (client Client) ToRelativePath(urlPath string) string {
 
 	return "/" + strings.TrimPrefix(urlPath, "/")
 }
+
+func (client Client) GetURL(path string) (url string, err error) {
+	return
+}
