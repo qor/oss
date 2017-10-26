@@ -205,6 +205,9 @@ func storageKey(urlPath string) string {
 }
 
 func (client Client) GetURL(path string) (url string, err error) {
+	if len(path) == 0 {
+		return
+	}
 	key := storageKey(path)
 
 	if client.Config.PrivateURL {
