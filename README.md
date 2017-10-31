@@ -1,8 +1,23 @@
 # OSS
 
-QOR OSS provide common interface to operate files in cloud storage, ftp, filesystem...
+QOR OSS provides common interface to operate files in cloud storage, ftp, filesystem etc.
 
 # Usage
+
+Currently, QOR OSS only support file system, S3 and Qiniu. But you can easily implement your own storage strategies by implementing the interface.
+
+```go
+// StorageInterface define common API to operate storage
+type StorageInterface interface {
+  Get(path string) (*os.File, error)
+  Put(path string, reader io.Reader) (*Object, error)
+  Delete(path string) error
+  List(path string) ([]*Object, error)
+  GetEndpoint() string
+}
+```
+
+Here's an example about how to use [QOR OSS](https://github.com/qor/oss) with S3. After initialized the s3 storage, The functions in the interface are available.
 
 ```go
 import (
@@ -28,3 +43,7 @@ func main() {
 	storage.List("/")
 }
 ```
+
+## License
+
+Released under the [MIT License](http://opensource.org/licenses/MIT).
