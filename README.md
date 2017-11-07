@@ -38,6 +38,9 @@ func main() {
 	// Get file with path
 	storage.Get("/sample.txt")
 
+	// Get object as io.ReadCloser
+	storage.GetStream("/sample.txt")
+
 	// Delete file with path
 	storage.Delete("/sample.txt")
 
