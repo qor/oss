@@ -98,6 +98,7 @@ func (fileSystem FileSystem) GetEndpoint() string {
 	return "/"
 }
 
+// GetURL get public accessible URL
 func (fileSystem FileSystem) GetURL(path string) (url string, err error) {
-	return
+	return path
 }

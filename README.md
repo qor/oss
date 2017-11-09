@@ -14,6 +14,7 @@ type StorageInterface interface {
   Delete(path string) error
   List(path string) ([]*Object, error)
   GetEndpoint() string
+  GetURL(path string) (string, error)
 }
 ```
 
@@ -41,6 +42,9 @@ func main() {
 
 	// List all objects under path
 	storage.List("/")
+
+	// Get Public Accessible URL (useful if current file saved privately)
+	storage.GetURL("/sample.txt")
 }
 ```
 

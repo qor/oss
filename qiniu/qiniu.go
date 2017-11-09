@@ -204,6 +204,7 @@ func storageKey(urlPath string) string {
 	return strings.TrimPrefix(urlPath, "/")
 }
 
+// GetURL get public accessible URL
 func (client Client) GetURL(path string) (url string, err error) {
 	if len(path) == 0 {
 		return

@@ -183,6 +183,7 @@ func (client Client) GetEndpoint() string {
 
 var urlRegexp = regexp.MustCompile(`(https?:)?//((\w+).)+(\w+)/`)
 
+// ToRelativePath process path to relative path
 func (client Client) ToRelativePath(urlPath string) string {
 	if urlRegexp.MatchString(urlPath) {
 		if u, err := url.Parse(urlPath); err == nil {
@@ -193,6 +194,8 @@ func (client Client) ToRelativePath(urlPath string) string {
 	return "/" + strings.TrimPrefix(urlPath, "/")
 }
 
+// GetURL get public accessible URL
 func (client Client) GetURL(path string) (url string, err error) {
+	// FIXME
 	return
 }
