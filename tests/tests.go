@@ -53,6 +53,17 @@ func TestAll(storage oss.StorageInterface, t *testing.T) {
 		}
 	}
 
+	// Get stream
+	if stream, err := storage.GetStream(fileName); err != nil {
+		t.Errorf("No error should happen when get sample file, but got %v", err)
+	} else {
+		if buffer, err := ioutil.ReadAll(stream); err != nil {
+			t.Errorf("No error should happen when read downloaded file, but got %v", err)
+		} else if string(buffer) == "sample" {
+			t.Errorf("Downloaded file should contain correct content, but got %v", string(buffer))
+		}
+	}
+
 	// List
 	if objects, err := storage.List(randomPath); err != nil {
 		t.Errorf("No error should happen when list objects, but got %v", err)
