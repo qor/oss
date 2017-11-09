@@ -17,14 +17,15 @@ type Config struct {
 	Bucket    string `env:"QOR_AWS_BUCKET"`
 }
 
-var client, privateClient *s3.Client
+var (
+	client *s3.Client
+	config = Config{}
+)
 
 func init() {
-	config := Config{}
 	configor.Load(&config)
 
 	client = s3.New(&s3.Config{AccessID: config.AccessID, AccessKey: config.AccessKey, Region: config.Region, Bucket: config.Bucket})
-	privateClient = s3.New(&s3.Config{AccessID: config.AccessID, AccessKey: config.AccessKey, Region: config.Region, Bucket: config.Bucket, ACL: awss3.BucketCannedACLAuthenticatedRead})
 }
 
 func TestAll(t *testing.T) {
@@ -32,7 +33,12 @@ func TestAll(t *testing.T) {
 	tests.TestAll(client, t)
 
 	fmt.Println("testing S3 with private ACL")
+	privateClient := s3.New(&s3.Config{AccessID: config.AccessID, AccessKey: config.AccessKey, Region: config.Region, Bucket: config.Bucket, ACL: awss3.BucketCannedACLPrivate})
 	tests.TestAll(privateClient, t)
+
+	fmt.Println("testing S3 with AuthenticatedRead ACL")
+	authenticatedReadClient := s3.New(&s3.Config{AccessID: config.AccessID, AccessKey: config.AccessKey, Region: config.Region, Bucket: config.Bucket, ACL: awss3.BucketCannedACLAuthenticatedRead})
+	tests.TestAll(authenticatedReadClient, t)
 }
 
 func TestToRelativePath(t *testing.T) {
