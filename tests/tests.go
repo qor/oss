@@ -3,6 +3,7 @@ package tests
 import (
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -50,6 +51,23 @@ func TestAll(storage oss.StorageInterface, t *testing.T) {
 			t.Errorf("No error should happen when read downloaded file, but got %v", err)
 		} else if string(buffer) == "sample" {
 			t.Errorf("Downloaded file should contain correct content, but got %v", string(buffer))
+		}
+	}
+
+	// GetURL
+	if url, err := storage.GetURL(fileName); err != nil {
+		t.Errorf("No error should happen when GetURL for sample file, but got %v", err)
+	} else if strings.HasPrefix(url, "http") {
+		resp, err := http.Get(url)
+
+		if err != nil {
+			t.Errorf("No error should happen when get file with public URL")
+		} else {
+			if buffer, err := ioutil.ReadAll(resp.Body); err != nil {
+				t.Errorf("No error should happen when read downloaded file, but got %v", err)
+			} else if string(buffer) == "sample" {
+				t.Errorf("Downloaded file should contain correct content, but got %v", string(buffer))
+			}
 		}
 	}
 
