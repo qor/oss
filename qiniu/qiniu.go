@@ -76,29 +76,10 @@ func (client Client) SetPutPolicy(putPolicy *storage.PutPolicy) {
 
 // Get receive file with given path
 func (client Client) Get(path string) (file *os.File, err error) {
-	var purl string
-	purl, err = client.GetURL(path)
-	if err != nil {
-		return
-	}
-
-	var res *http.Response
-	res, err = http.Get(purl)
-	if err != nil {
-		return
-	}
-
-	// fmt.Println("geting", purl)
-	// b, _ := httputil.DumpResponse(res, false)
-	// fmt.Println(string(b))
-
-	if res.StatusCode != http.StatusOK {
-		err = fmt.Errorf("file %s not found", path)
-		return
-	}
+	readCloser, err := client.GetStream(path)
 
 	if file, err = ioutil.TempFile("/tmp", "qiniu"); err == nil {
-		_, err = io.Copy(file, res.Body)
+		_, err = io.Copy(file, readCloser)
 		file.Seek(0, 0)
 	}
 

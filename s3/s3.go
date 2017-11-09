@@ -81,14 +81,11 @@ func New(config *Config) *Client {
 
 // Get receive file with given path
 func (client Client) Get(path string) (file *os.File, err error) {
-	getResponse, err := client.S3.GetObject(&s3.GetObjectInput{
-		Bucket: aws.String(client.Config.Bucket),
-		Key:    aws.String(client.ToRelativePath(path)),
-	})
+	readCloser, err := client.GetStream(path)
 
 	if err == nil {
 		if file, err = ioutil.TempFile("/tmp", "s3"); err == nil {
-			_, err = io.Copy(file, getResponse.Body)
+			_, err = io.Copy(file, readCloser)
 			file.Seek(0, 0)
 		}
 	}
