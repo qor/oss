@@ -105,6 +105,22 @@ func (client Client) Get(path string) (file *os.File, err error) {
 	return file, err
 }
 
+// GetStream get file as stream
+func (client Client) GetStream(path string) (io.ReadCloser, error) {
+	purl, err := client.GetURL(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var res *http.Response
+	res, err = http.Get(purl)
+	if err == nil && res.StatusCode != http.StatusOK {
+		err = fmt.Errorf("file %s not found", path)
+	}
+
+	return res.Body, err
+}
+
 // Put store a reader into given path
 func (client Client) Put(urlPath string, reader io.Reader) (r *oss.Object, err error) {
 	if seeker, ok := reader.(io.ReadSeeker); ok {
