@@ -96,6 +96,16 @@ func (client Client) Get(path string) (file *os.File, err error) {
 	return file, err
 }
 
+// GetStream get file as stream
+func (client Client) GetStream(path string) (io.ReadCloser, error) {
+	getResponse, err := client.S3.GetObject(&s3.GetObjectInput{
+		Bucket: aws.String(client.Config.Bucket),
+		Key:    aws.String(client.ToRelativePath(path)),
+	})
+
+	return getResponse.Body, err
+}
+
 // Put store a reader into given path
 func (client Client) Put(urlPath string, reader io.Reader) (*oss.Object, error) {
 	if seeker, ok := reader.(io.ReadSeeker); ok {
