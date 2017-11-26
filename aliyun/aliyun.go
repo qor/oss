@@ -99,12 +99,12 @@ func (client Client) Delete(path string) error {
 func (client Client) List(path string) ([]*oss.Object, error) {
 	var objects []*oss.Object
 
-	results, err := client.Bucket.ListObjects()
+	results, err := client.Bucket.ListObjects(aliyun.Prefix(path))
 
 	if err == nil {
 		for _, obj := range results.Objects {
 			objects = append(objects, &oss.Object{
-				Path:             client.ToRelativePath(obj.Key),
+				Path:             "/" + client.ToRelativePath(obj.Key),
 				Name:             filepath.Base(obj.Key),
 				LastModified:     &obj.LastModified,
 				StorageInterface: client,
