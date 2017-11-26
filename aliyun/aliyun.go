@@ -135,7 +135,7 @@ var urlRegexp = regexp.MustCompile(`(https?:)?//((\w+).)+(\w+)/`)
 func (client Client) ToRelativePath(urlPath string) string {
 	if urlRegexp.MatchString(urlPath) {
 		if u, err := url.Parse(urlPath); err == nil {
-			return u.Path
+			return strings.TrimPrefix(u.Path, "/")
 		}
 	}
 
@@ -144,5 +144,5 @@ func (client Client) ToRelativePath(urlPath string) string {
 
 // GetURL get public accessible URL
 func (client Client) GetURL(path string) (url string, err error) {
-	return client.Bucket.SignURL("", aliyun.HTTPGet, 60*60) // 1 hour
+	return client.Bucket.SignURL(client.ToRelativePath(path), aliyun.HTTPGet, 60*60) // 1 hour
 }
