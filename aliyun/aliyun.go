@@ -36,6 +36,10 @@ func New(config *Config) *Client {
 		client = &Client{Config: config}
 	)
 
+	if config.Endpoint == "" {
+		config.Endpoint = "oss-cn-hangzhou.aliyuncs.com"
+	}
+
 	Aliyun, err := aliyun.New(config.Endpoint, config.AccessID, config.AccessKey)
 
 	if err == nil {
@@ -135,7 +139,7 @@ func (client Client) ToRelativePath(urlPath string) string {
 		}
 	}
 
-	return "/" + strings.TrimPrefix(urlPath, "/")
+	return strings.TrimPrefix(urlPath, "/")
 }
 
 // GetURL get public accessible URL
