@@ -1,13 +1,12 @@
 # OSS
 
-QOR OSS provides common interface to operate files in cloud storage, ftp, filesystem etc.
+QOR OSS aims to provide a common interface to operate files with any kinds of storages, like cloud storages, FTP, file system etc
 
 # Usage
 
-Currently, QOR OSS only support file system, S3 and Qiniu. But you can easily implement your own storage strategies by implementing the interface.
+Currently, QOR OSS provides support for file system, S3, Aliyun and Qiniu., You can easily implement your own storage strategies by implementing the interface.
 
 ```go
-// StorageInterface define common API to operate storage
 type StorageInterface interface {
   Get(path string) (*os.File, error)
   GetStream(path string) (io.ReadCloser, error)
@@ -19,36 +18,36 @@ type StorageInterface interface {
 }
 ```
 
-Here's an example about how to use [QOR OSS](https://github.com/qor/oss) with S3. After initialized the s3 storage, The functions in the interface are available.
+Here's an example of how to use [QOR OSS](https://github.com/qor/oss) with S3. After initializing the s3 storage, The functions in the interface are available.
 
 ```go
 import (
-	"github.com/oss/filesystem"
-	"github.com/oss/s3"
-	awss3 "github.com/aws/aws-sdk-go/s3"
+    "github.com/oss/filesystem"
+    "github.com/oss/s3"
+    awss3 "github.com/aws/aws-sdk-go/s3"
 )
 
 func main() {
-	storage := s3.New(s3.Config{AccessID: "access_id", AccessKey: "access_key", Region: "region", Bucket: "bucket", Endpoint: "cdn.getqor.com", ACL: awss3.BucketCannedACLPublicRead})
-	// storage := filesystem.New("/tmp")
+    storage := s3.New(s3.Config{AccessID: "access_id", AccessKey: "access_key", Region: "region", Bucket: "bucket", Endpoint: "cdn.getqor.com", ACL: awss3.BucketCannedACLPublicRead})
+    // storage := filesystem.New("/tmp")
 
-	// Save a reader interface into storage
-	storage.Put("/sample.txt", reader)
+    // Save a reader interface into storage
+    storage.Put("/sample.txt", reader)
 
-	// Get file with path
-	storage.Get("/sample.txt")
+    // Get file with path
+    storage.Get("/sample.txt")
 
-	// Get object as io.ReadCloser
-	storage.GetStream("/sample.txt")
+    // Get object as io.ReadCloser
+    storage.GetStream("/sample.txt")
 
-	// Delete file with path
-	storage.Delete("/sample.txt")
+    // Delete file with path
+    storage.Delete("/sample.txt")
 
-	// List all objects under path
-	storage.List("/")
+    // List all objects under path
+    storage.List("/")
 
-	// Get Public Accessible URL (useful if current file saved privately)
-	storage.GetURL("/sample.txt")
+    // Get Public Accessible URL (useful if current file saved privately)
+    storage.GetURL("/sample.txt")
 }
 ```
 
