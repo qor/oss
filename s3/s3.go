@@ -204,13 +204,16 @@ func (client Client) ToRelativePath(urlPath string) string {
 
 // GetURL get public accessible URL
 func (client Client) GetURL(path string) (url string, err error) {
-	if client.Config.ACL == s3.BucketCannedACLPrivate || client.Config.ACL == s3.BucketCannedACLAuthenticatedRead {
-		getResponse, _ := client.S3.GetObjectRequest(&s3.GetObjectInput{
-			Bucket: aws.String(client.Config.Bucket),
-			Key:    aws.String(client.ToRelativePath(path)),
-		})
+	if client.Endpoint == "" {
+		if client.Config.ACL == s3.BucketCannedACLPrivate || client.Config.ACL == s3.BucketCannedACLAuthenticatedRead {
+			getResponse, _ := client.S3.GetObjectRequest(&s3.GetObjectInput{
+				Bucket: aws.String(client.Config.Bucket),
+				Key:    aws.String(client.ToRelativePath(path)),
+			})
 
-		return getResponse.Presign(1 * time.Hour)
+			return getResponse.Presign(1 * time.Hour)
+		}
 	}
+
 	return path, nil
 }
