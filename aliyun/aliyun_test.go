@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	aliyunoss "github.com/aliyun/aliyun-oss-go-sdk/oss"
 	"github.com/jinzhu/configor"
 	"github.com/qor/oss/aliyun"
 	"github.com/qor/oss/tests"
@@ -42,6 +43,7 @@ func init() {
 		AccessID:  config.Private.AccessID,
 		AccessKey: config.Private.AccessKey,
 		Bucket:    config.Private.Bucket,
+		ACL:       aliyunoss.ACLPrivate,
 		Endpoint:  config.Private.Endpoint,
 	})
 }

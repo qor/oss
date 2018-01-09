@@ -26,8 +26,8 @@ type Config struct {
 	AccessKey string
 	Region    string
 	Bucket    string
-	ACL       string
 	Endpoint  string
+	ACL       aliyun.ACLType
 }
 
 // New initialize Aliyun storage
@@ -42,7 +42,7 @@ func New(config *Config) *Client {
 	}
 
 	if config.ACL == "" {
-		config.ACL = "public-read"
+		config.ACL = aliyun.ACLPublicRead
 	}
 
 	Aliyun, err := aliyun.New(config.Endpoint, config.AccessID, config.AccessKey)
@@ -84,7 +84,7 @@ func (client Client) Put(urlPath string, reader io.Reader) (*oss.Object, error) 
 		seeker.Seek(0, 0)
 	}
 
-	err := client.Bucket.PutObject(client.ToRelativePath(urlPath), reader)
+	err := client.Bucket.PutObject(client.ToRelativePath(urlPath), reader, aliyun.ACL(client.Config.ACL))
 	now := time.Now()
 
 	return &oss.Object{
