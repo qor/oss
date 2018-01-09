@@ -26,6 +26,7 @@ type Config struct {
 	AccessKey string
 	Region    string
 	Bucket    string
+	ACL       string
 	Endpoint  string
 }
 
@@ -38,6 +39,10 @@ func New(config *Config) *Client {
 
 	if config.Endpoint == "" {
 		config.Endpoint = "oss-cn-hangzhou.aliyuncs.com"
+	}
+
+	if config.ACL == "" {
+		config.ACL = "public-read"
 	}
 
 	Aliyun, err := aliyun.New(config.Endpoint, config.AccessID, config.AccessKey)
@@ -144,5 +149,8 @@ func (client Client) ToRelativePath(urlPath string) string {
 
 // GetURL get public accessible URL
 func (client Client) GetURL(path string) (url string, err error) {
-	return client.Bucket.SignURL(client.ToRelativePath(path), aliyun.HTTPGet, 60*60) // 1 hour
+	if client.Config.ACL == "private" {
+		return client.Bucket.SignURL(client.ToRelativePath(path), aliyun.HTTPGet, 60*60) // 1 hour
+	}
+	return path, nil
 }
