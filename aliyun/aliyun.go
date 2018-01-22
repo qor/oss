@@ -63,7 +63,7 @@ func (client Client) Get(path string) (file *os.File, err error) {
 	readCloser, err := client.GetStream(path)
 
 	if err == nil {
-		if file, err = ioutil.TempFile("/tmp", "s3"); err == nil {
+		if file, err = ioutil.TempFile("/tmp", "ali"); err == nil {
 			defer readCloser.Close()
 			_, err = io.Copy(file, readCloser)
 			file.Seek(0, 0)
