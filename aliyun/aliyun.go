@@ -149,7 +149,7 @@ func (client Client) ToRelativePath(urlPath string) string {
 
 // GetURL get public accessible URL
 func (client Client) GetURL(path string) (url string, err error) {
-	if client.Config.ACL == "private" {
+	if client.Config.ACL == aliyun.ACLPrivate {
 		return client.Bucket.SignURL(client.ToRelativePath(path), aliyun.HTTPGet, 60*60) // 1 hour
 	}
 	return path, nil
