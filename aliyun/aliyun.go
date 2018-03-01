@@ -123,6 +123,9 @@ func (client Client) List(path string) ([]*oss.Object, error) {
 // GetEndpoint get endpoint, FileSystem's endpoint is /
 func (client Client) GetEndpoint() string {
 	if client.Config.Endpoint != "" {
+		if strings.HasSuffix(client.Config.Endpoint, "aliyuncs.com") {
+			return client.Config.Bucket + "." + client.Config.Endpoint
+		}
 		return client.Config.Endpoint
 	}
 
