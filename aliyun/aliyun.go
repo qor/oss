@@ -22,13 +22,14 @@ type Client struct {
 
 // Config Aliyun client config
 type Config struct {
-	AccessID  string
-	AccessKey string
-	Region    string
-	Bucket    string
-	Endpoint  string
-	ACL       aliyun.ACLType
-	UseCname  bool
+	AccessID      string
+	AccessKey     string
+	Region        string
+	Bucket        string
+	Endpoint      string
+	ACL           aliyun.ACLType
+	ClientOptions []aliyun.ClientOption
+	UseCname      bool
 }
 
 // New initialize Aliyun storage
@@ -46,12 +47,11 @@ func New(config *Config) *Client {
 		config.ACL = aliyun.ACLPublicRead
 	}
 
-	options := make([]aliyun.ClientOption, 0)
 	if config.UseCname {
-		options = append(options, aliyun.UseCname(config.UseCname))
+		config.ClientOptions = append(config.ClientOptions, aliyun.UseCname(config.UseCname))
 	}
 
-	Aliyun, err := aliyun.New(config.Endpoint, config.AccessID, config.AccessKey, options...)
+	Aliyun, err := aliyun.New(config.Endpoint, config.AccessID, config.AccessKey, config.ClientOptions...)
 
 	if err == nil {
 		client.Bucket, err = Aliyun.Bucket(config.Bucket)
