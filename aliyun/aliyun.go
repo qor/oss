@@ -28,6 +28,7 @@ type Config struct {
 	Bucket    string
 	Endpoint  string
 	ACL       aliyun.ACLType
+	UseCname  bool
 }
 
 // New initialize Aliyun storage
@@ -45,7 +46,12 @@ func New(config *Config) *Client {
 		config.ACL = aliyun.ACLPublicRead
 	}
 
-	Aliyun, err := aliyun.New(config.Endpoint, config.AccessID, config.AccessKey)
+	options := make([]aliyun.ClientOption, 0)
+	if config.UseCname {
+		options = append(options, aliyun.UseCname(config.UseCname))
+	}
+
+	Aliyun, err := aliyun.New(config.Endpoint, config.AccessID, config.AccessKey, options...)
 
 	if err == nil {
 		client.Bucket, err = Aliyun.Bucket(config.Bucket)
