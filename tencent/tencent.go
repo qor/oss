@@ -44,7 +44,6 @@ func (client Client) getUrl() string {
 
 func (client Client) Get(path string) (file *os.File, err error) {
 	readCloser, err := client.GetStream(path)
-
 	if err == nil {
 		if file, err = ioutil.TempFile("/tmp", "tencent"); err == nil {
 			defer readCloser.Close()
@@ -52,7 +51,7 @@ func (client Client) Get(path string) (file *os.File, err error) {
 			file.Seek(0, 0)
 		}
 	}
-	return file, nil
+	return file, err
 }
 
 var urlRegexp = regexp.MustCompile(`(https?:)?//((\w+).)+(\w+)/`)
@@ -72,6 +71,9 @@ func (client Client) GetStream(path string) (io.ReadCloser, error) {
 	resp, err := http.Get(fmt.Sprintf("%s%s", client.getUrl(), client.ToRelativePath(path)))
 	if err != nil {
 		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil,errors.New("get file fail")
 	}
 	return resp.Body, nil
 }
@@ -139,6 +141,7 @@ func (client Client) Delete(path string) error {
 	return nil
 }
 
+//todo not found api
 func (client Client) List(path string) ([]*oss.Object, error) {
 	var objects []*oss.Object
 

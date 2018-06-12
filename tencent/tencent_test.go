@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"io/ioutil"
 	"fmt"
+	"github.com/qor/oss/tests"
 )
 
 func TestClient_Get(t *testing.T) {
@@ -34,6 +35,11 @@ func TestClient_Put(t *testing.T) {
 	}
 
 	client.Put("test.png", bytes.NewReader(f))
+}
+
+
+func TestClient_Put2(t *testing.T) {
+	tests.TestAll(client,t)
 }
 
 func TestClient_Delete(t *testing.T) {
