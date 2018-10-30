@@ -31,13 +31,15 @@ type Client struct {
 
 // Config S3 client config
 type Config struct {
-	AccessID     string
-	AccessKey    string
-	Region       string
-	Bucket       string
-	SessionToken string
-	ACL          string
-	Endpoint     string
+	AccessID         string
+	AccessKey        string
+	Region           string
+	Bucket           string
+	SessionToken     string
+	ACL              string
+	Endpoint         string
+	S3Endpoint       string
+	S3ForcePathStyle bool
 }
 
 func EC2RoleAwsConfig(config *Config) *aws.Config {
@@ -70,8 +72,10 @@ func New(config *Config) *Client {
 		creds := credentials.NewStaticCredentials(config.AccessID, config.AccessKey, config.SessionToken)
 		if _, err := creds.Get(); err == nil {
 			client.S3 = s3.New(session.New(), &aws.Config{
-				Region:      &config.Region,
-				Credentials: creds,
+				Region:           &config.Region,
+				Credentials:      creds,
+				Endpoint:         &config.S3Endpoint,
+				S3ForcePathStyle: &config.S3ForcePathStyle,
 			})
 		}
 	}
@@ -195,10 +199,16 @@ var urlRegexp = regexp.MustCompile(`(https?:)?//((\w+).)+(\w+)/`)
 func (client Client) ToRelativePath(urlPath string) string {
 	if urlRegexp.MatchString(urlPath) {
 		if u, err := url.Parse(urlPath); err == nil {
+			if client.Config.S3ForcePathStyle { // First part of path will be bucket name
+				return strings.TrimPrefix(u.Path, "/"+client.Config.Bucket)
+			}
 			return u.Path
 		}
 	}
 
+	if client.Config.S3ForcePathStyle { // First part of path will be bucket name
+		return "/" + strings.TrimPrefix(urlPath, "/"+client.Config.Bucket+"/")
+	}
 	return "/" + strings.TrimPrefix(urlPath, "/")
 }
 
