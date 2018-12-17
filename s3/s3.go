@@ -40,6 +40,8 @@ type Config struct {
 	Endpoint         string
 	S3Endpoint       string
 	S3ForcePathStyle bool
+
+	Session *session.Session
 }
 
 func EC2RoleAwsConfig(config *Config) *aws.Config {
@@ -66,7 +68,9 @@ func New(config *Config) *Client {
 
 	client := &Client{Config: config}
 
-	if config.AccessID == "" && config.AccessKey == "" {
+	if config.Session != nil {
+		client.S3 = s3.New(config.Session)
+	} else if config.AccessID == "" && config.AccessKey == "" {
 		client.S3 = s3.New(session.New(), EC2RoleAwsConfig(config))
 	} else {
 		creds := credentials.NewStaticCredentials(config.AccessID, config.AccessKey, config.SessionToken)
