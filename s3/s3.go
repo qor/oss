@@ -40,6 +40,7 @@ type Config struct {
 	Endpoint         string
 	S3Endpoint       string
 	S3ForcePathStyle bool
+	CacheControl     string
 
 	Session *session.Session
 }
@@ -133,6 +134,9 @@ func (client Client) Put(urlPath string, reader io.Reader) (*oss.Object, error) 
 		Body:          bytes.NewReader(buffer),
 		ContentLength: aws.Int64(int64(len(buffer))),
 		ContentType:   aws.String(fileType),
+	}
+	if client.Config.CacheControl != "" {
+		params.CacheControl = aws.String(client.Config.CacheControl)
 	}
 
 	_, err = client.S3.PutObject(params)
