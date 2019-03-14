@@ -2,6 +2,7 @@ package s3
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"mime"
@@ -92,8 +93,11 @@ func New(config *Config) *Client {
 func (client Client) Get(path string) (file *os.File, err error) {
 	readCloser, err := client.GetStream(path)
 
+	ext := filepath.Ext(path)
+	pattern := fmt.Sprintf("s3*%s", ext)
+
 	if err == nil {
-		if file, err = ioutil.TempFile("/tmp", "s3"); err == nil {
+		if file, err = ioutil.TempFile("/tmp", pattern); err == nil {
 			defer readCloser.Close()
 			_, err = io.Copy(file, readCloser)
 			file.Seek(0, 0)
