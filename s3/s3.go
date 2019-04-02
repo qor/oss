@@ -46,19 +46,22 @@ type Config struct {
 	Session *session.Session
 }
 
-func EC2RoleAwsConfig(config *Config) *aws.Config {
+func ec2RoleAwsCreds(config *Config) *credentials.Credentials {
 	ec2m := ec2metadata.New(session.New(), &aws.Config{
 		HTTPClient: &http.Client{Timeout: 10 * time.Second},
 		Endpoint:   aws.String("http://169.254.169.254/latest"),
 	})
 
-	cr := credentials.NewCredentials(&ec2rolecreds.EC2RoleProvider{
+	return credentials.NewCredentials(&ec2rolecreds.EC2RoleProvider{
 		Client: ec2m,
 	})
+}
 
+// Does this need to be publicly exported?
+func EC2RoleAwsConfig(config *Config) *aws.Config {
 	return &aws.Config{
 		Region:      aws.String(config.Region),
-		Credentials: cr,
+		Credentials: ec2RoleAwsCreds(config),
 	}
 }
 
@@ -70,19 +73,22 @@ func New(config *Config) *Client {
 
 	client := &Client{Config: config}
 
+	s3Config := &aws.Config{
+		Region:           &config.Region,
+		Endpoint:         &config.S3Endpoint,
+		S3ForcePathStyle: &config.S3ForcePathStyle,
+	}
+
 	if config.Session != nil {
-		client.S3 = s3.New(config.Session)
+		client.S3 = s3.New(config.Session, s3Config)
 	} else if config.AccessID == "" && config.AccessKey == "" {
-		client.S3 = s3.New(session.New(), EC2RoleAwsConfig(config))
+		s3Config.Credentials = ec2RoleAwsCreds(config)
+		client.S3 = s3.New(session.New(), s3Config)
 	} else {
 		creds := credentials.NewStaticCredentials(config.AccessID, config.AccessKey, config.SessionToken)
 		if _, err := creds.Get(); err == nil {
-			client.S3 = s3.New(session.New(), &aws.Config{
-				Region:           &config.Region,
-				Credentials:      creds,
-				Endpoint:         &config.S3Endpoint,
-				S3ForcePathStyle: &config.S3ForcePathStyle,
-			})
+			s3Config.Credentials = creds
+			client.S3 = s3.New(session.New(), s3Config)
 		}
 	}
 
