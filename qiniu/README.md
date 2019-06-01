@@ -5,7 +5,7 @@
 ## Usage
 
 ```go
-import "github.com/qor/oss/aliyun"
+import "github.com/qor/oss/qiniu"
 
 func main() {
   storage := qiniu.New(&qiniu.Config{
