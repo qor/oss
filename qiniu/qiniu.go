@@ -122,7 +122,7 @@ func (client Client) Put(urlPath string, reader io.Reader) (r *oss.Object, err e
 	}
 
 	putPolicy := storage.PutPolicy{
-		Scope: client.Config.Bucket,
+		Scope: fmt.Sprintf("%s:%s", client.Config.Bucket, urlPath),
 	}
 
 	if client.putPolicy != nil {
