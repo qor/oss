@@ -17,6 +17,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/credentials/ec2rolecreds"
+	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -42,6 +43,8 @@ type Config struct {
 	S3ForcePathStyle bool
 
 	Session *session.Session
+
+	RoleARN string
 }
 
 func EC2RoleAwsConfig(config *Config) *aws.Config {
@@ -60,6 +63,8 @@ func EC2RoleAwsConfig(config *Config) *aws.Config {
 	}
 }
 
+var AssumeRoleMode bool
+
 // New initialize S3 storage
 func New(config *Config) *Client {
 	if config.ACL == "" {
@@ -67,6 +72,21 @@ func New(config *Config) *Client {
 	}
 
 	client := &Client{Config: config}
+
+	if AssumeRoleMode {
+		sess := session.Must(session.NewSession())
+		creds := stscreds.NewCredentials(sess, config.RoleARN)
+
+		s3Config := &aws.Config{
+			Region:           &config.Region,
+			Endpoint:         &config.S3Endpoint,
+			S3ForcePathStyle: &config.S3ForcePathStyle,
+			Credentials:      creds,
+		}
+
+		client.S3 = s3.New(sess, s3Config)
+		return client
+	}
 
 	if config.Session != nil {
 		client.S3 = s3.New(config.Session)
