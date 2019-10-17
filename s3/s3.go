@@ -63,8 +63,6 @@ func EC2RoleAwsConfig(config *Config) *aws.Config {
 	}
 }
 
-var AssumeRoleMode bool
-
 // New initialize S3 storage
 func New(config *Config) *Client {
 	if config.ACL == "" {
@@ -73,7 +71,7 @@ func New(config *Config) *Client {
 
 	client := &Client{Config: config}
 
-	if AssumeRoleMode {
+	if config.RoleARN != "" {
 		sess := session.Must(session.NewSession())
 		creds := stscreds.NewCredentials(sess, config.RoleARN)
 
