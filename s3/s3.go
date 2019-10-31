@@ -100,8 +100,10 @@ func New(config *Config) *Client {
 	if config.Session != nil {
 		client.S3 = s3.New(config.Session, s3Config)
 	} else if config.AccessID == "" && config.AccessKey == "" {
-		s3Config.Credentials = ec2RoleAwsCreds(config)
-		client.S3 = s3.New(session.New(), s3Config)
+		// use aws default Credentials
+		// s3Config.Credentials = ec2RoleAwsCreds(config)
+		sess := session.Must(session.NewSession())
+		client.S3 = s3.New(sess, s3Config)
 	} else {
 		creds := credentials.NewStaticCredentials(config.AccessID, config.AccessKey, config.SessionToken)
 		if _, err := creds.Get(); err == nil {
