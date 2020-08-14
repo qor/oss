@@ -1,11 +1,11 @@
 package gcs_test
 
 import (
-	"bufio"
-	"os"
+	"fmt"
 	"testing"
 
 	"github.com/dilip640/oss/gcs"
+	"github.com/dilip640/oss/tests"
 	"github.com/jinzhu/configor"
 )
 
@@ -25,31 +25,26 @@ func init() {
 	client = gcs.New(&gcs.Config{Bucket: config.Bucket, Endpoint: config.Endpoint})
 }
 
-// func TestToRelativePath(t *testing.T) {
-// 	urlMap := map[string]string{
-// 		"https://mybucket.s3.amazonaws.com/myobject.ext": "/myobject.ext",
-// 		"https://qor-example.com/myobject.ext":           "/myobject.ext",
-// 		"//mybucket.s3.amazonaws.com/myobject.ext":       "/myobject.ext",
-// 		"http://mybucket.s3.amazonaws.com/myobject.ext":  "/myobject.ext",
-// 		"myobject.ext": "/myobject.ext",
-// 	}
+func TestAll(t *testing.T) {
+	fmt.Println("testing GCS with public ACL")
+	tests.TestAll(client, t)
 
-// 	for url, path := range urlMap {
-// 		if client.ToRelativePath(url) != path {
-// 			t.Errorf("%v's relative path should be %v, but got %v", url, path, client.ToRelativePath(url))
-// 		}
-// 	}
-// }
+	fmt.Println("testing GCS with private ACL")
+	privateClient := gcs.New(&gcs.Config{Bucket: config.Bucket, Endpoint: config.Endpoint})
+	tests.TestAll(privateClient, t)
+}
 
-func TestUpload(t *testing.T) {
-	file, err := os.Open("sample.txt")
-	if err != nil {
-		t.Error(err)
-		return
+func TestToRelativePath(t *testing.T) {
+	urlMap := map[string]string{
+		"https://storage.googleapis.com/pelto-test/myobject.ext": "myobject.ext",
+		"//storage.googleapis.com/pelto-test/myobject.ext":       "myobject.ext",
+		"gs://pelt-test/myobject.ext":                            "myobject.ext",
+		"myobject.ext":                                           "myobject.ext",
 	}
 
-	_, err = client.Put(file.Name(), bufio.NewReader(file))
-	if err != nil {
-		t.Error(err)
+	for url, path := range urlMap {
+		if client.ToRelativePath(url) != path {
+			t.Errorf("%v's relative path should be %v, but got %v", url, path, client.ToRelativePath(url))
+		}
 	}
 }

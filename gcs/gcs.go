@@ -68,16 +68,15 @@ func (client Client) Get(path string) (file *os.File, err error) {
 
 // GetStream get file as stream
 func (client Client) GetStream(path string) (io.ReadCloser, error) {
-	log.Println("GetStream " + path)
 	bkt := client.Client.Bucket(client.Config.Bucket)
 	obj := bkt.Object(client.ToRelativePath(path))
 	r, err := obj.NewReader(context.TODO())
+	_, err = obj.Attrs(context.TODO())
 	return r, err
 }
 
 // Put store a reader into given path
 func (client Client) Put(urlPath string, reader io.Reader) (*oss.Object, error) {
-	log.Println("Put " + urlPath)
 	if seeker, ok := reader.(io.ReadSeeker); ok {
 		seeker.Seek(0, 0)
 	}
@@ -111,20 +110,20 @@ func (client Client) Put(urlPath string, reader io.Reader) (*oss.Object, error) 
 
 // Delete delete file
 func (client Client) Delete(path string) error {
-	log.Println("Delete " + path)
+	path = strings.TrimPrefix(path, "/")
 	bkt := client.Client.Bucket(client.Config.Bucket)
 	obj := bkt.Object(client.ToRelativePath(path))
-	return obj.Delete(context.TODO())
+	err := obj.Delete(context.TODO())
+	return err
 }
 
 // List list all objects under current path
 func (client Client) List(path string) ([]*oss.Object, error) {
-	log.Println("List " + path)
 	var objects []*oss.Object
 	var prefix string
 
 	if path != "" {
-		prefix = strings.Trim(path, "/") + "/"
+		prefix = strings.Trim(path, "/")
 	}
 
 	query := &storage.Query{Prefix: prefix}
@@ -140,7 +139,7 @@ func (client Client) List(path string) ([]*oss.Object, error) {
 		}
 
 		objects = append(objects, &oss.Object{
-			Path:             client.ToRelativePath(attrs.MediaLink),
+			Path:             "/" + client.ToRelativePath(attrs.Name),
 			Name:             filepath.Base(attrs.Name),
 			LastModified:     &attrs.Created,
 			StorageInterface: client,
@@ -152,37 +151,29 @@ func (client Client) List(path string) ([]*oss.Object, error) {
 
 // GetEndpoint get endpoint, FileSystem's endpoint is /
 func (client Client) GetEndpoint() string {
-	endpoint := filepath.Join(client.Config.Endpoint, client.Config.Bucket)
-	return endpoint
+	u, err := url.Parse(client.Config.Endpoint)
+	if err != nil {
+		log.Println(err)
+	}
+	u.Path = path.Join(u.Path, client.Config.Bucket)
+	return u.String()
 }
 
-var urlRegexp = regexp.MustCompile("")
+var urlRegexp = regexp.MustCompile(`(https?:)?//((\w+).)+(\w+)/`)
 
 // ToRelativePath process path to relative path
 func (client Client) ToRelativePath(urlPath string) string {
-	log.Println("ToRelativePath " + urlPath)
 	if urlRegexp.MatchString(urlPath) {
 		if u, err := url.Parse(urlPath); err == nil {
-			return strings.TrimPrefix(u.Path, "/"+client.Config.Bucket)
+			urlPath = strings.TrimPrefix(u.Path, "/"+client.Config.Bucket+"/")
+			urlPath = strings.TrimPrefix(urlPath, "/")
+			return urlPath
 		}
 	}
-
-	return "/" + strings.TrimPrefix(urlPath, "/")
+	return strings.TrimPrefix(urlPath, "/")
 }
 
 // GetURL get public accessible URL
-func (client Client) GetURL(path string) (url string, err error) {
-	log.Println("GetURL " + path)
-	// if client.Endpoint == "" {
-	// 	if client.Config.ACL == s3.BucketCannedACLPrivate || client.Config.ACL == s3.BucketCannedACLAuthenticatedRead {
-	// 		getResponse, _ := client.S3.GetObjectRequest(&s3.GetObjectInput{
-	// 			Bucket: aws.String(client.Config.Bucket),
-	// 			Key:    aws.String(client.ToRelativePath(path)),
-	// 		})
-
-	// 		return getResponse.Presign(1 * time.Hour)
-	// 	}
-	// }
-
+func (client Client) GetURL(path string) (string, error) {
 	return path, nil
 }
