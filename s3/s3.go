@@ -189,6 +189,28 @@ func (client Client) Delete(path string) error {
 	return err
 }
 
+// DeleteObjects delete files in bulk
+func (client Client) DeleteObjects(paths []string) (err error) {
+	var objs []*s3.ObjectIdentifier
+	for _, v := range paths {
+		var obj s3.ObjectIdentifier
+		obj.Key = aws.String(strings.TrimPrefix(client.ToRelativePath(v), "/"))
+		objs = append(objs, &obj)
+	}
+	input := &s3.DeleteObjectsInput{
+		Bucket: aws.String(client.Config.Bucket),
+		Delete: &s3.Delete{
+			Objects: objs,
+		},
+	}
+
+	_, err = client.S3.DeleteObjects(input)
+	if err != nil {
+		return
+	}
+	return
+}
+
 // List list all objects under current path
 func (client Client) List(path string) ([]*oss.Object, error) {
 	var objects []*oss.Object
