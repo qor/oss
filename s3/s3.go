@@ -189,6 +189,7 @@ func (client Client) Delete(path string) error {
 	return err
 }
 
+// DeleteObjects delete files in bulk
 func (client Client) DeleteObjects(paths []string) (err error) {
 	var objs []*s3.ObjectIdentifier
 	for _, v := range paths {
