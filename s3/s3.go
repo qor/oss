@@ -189,21 +189,21 @@ func (client Client) Delete(path string) error {
 	return err
 }
 
-func (client Client) DeleteObjects( paths []string) (err error) {
+func (client Client) DeleteObjects(paths []string) (err error) {
 	var objs []*s3.ObjectIdentifier
 	for _, v := range paths {
 		var obj s3.ObjectIdentifier
-		obj.Key = aws.String(client.ToRelativePath(v))
+		obj.Key = aws.String(strings.TrimPrefix(client.ToRelativePath(v), "/"))
 		objs = append(objs, &obj)
 	}
 	input := &s3.DeleteObjectsInput{
-		Bucket: aws.String(S3Config.Bucket),
+		Bucket: aws.String(client.Config.Bucket),
 		Delete: &s3.Delete{
 			Objects: objs,
 		},
 	}
 
-	r, err := client.S3.DeleteObjects(input)
+	_, err = client.S3.DeleteObjects(input)
 	if err != nil {
 		return
 	}
