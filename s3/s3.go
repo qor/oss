@@ -287,3 +287,13 @@ func (client Client) GetURL(path string) (url string, err error) {
 
 	return path, nil
 }
+
+// Copy copy s3 file from "from" to "to"
+func (client Client) Copy(from, to string) (err error) {
+	_, err = client.S3.CopyObject(&s3.CopyObjectInput{
+		Bucket:     aws.String(client.Config.Bucket),
+		CopySource: aws.String(from),
+		Key:        aws.String(to),
+	})
+	return
+}
