@@ -1,6 +1,7 @@
 package filesystem
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -54,13 +55,18 @@ func (fileSystem FileSystem) Put(path string, reader io.Reader) (*oss.Object, er
 		return nil, err
 	}
 
+	if seeker, ok := reader.(io.ReadSeeker); ok {
+		seeker.Seek(0, 0)
+	}
+	buf := bytes.NewBuffer([]byte{})
+	if _, err = io.Copy(buf, reader); err != nil {
+		return nil, err
+	}
+
 	dst, err := os.Create(fullpath)
 
 	if err == nil {
-		if seeker, ok := reader.(io.ReadSeeker); ok {
-			seeker.Seek(0, 0)
-		}
-		_, err = io.Copy(dst, reader)
+		_, err = io.Copy(dst, buf)
 	}
 
 	return &oss.Object{Path: path, Name: filepath.Base(path), StorageInterface: fileSystem}, err

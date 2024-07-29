@@ -33,6 +33,17 @@ func TestAll(storage oss.StorageInterface, t *testing.T) {
 		t.Errorf("No error should happen when opem sample file, but got %v", err)
 	}
 
+	// Put file again
+	if file, err := storage.GetStream(fileName); err == nil {
+		if object, err := storage.Put(fileName, file); err != nil {
+			t.Errorf("No error should happen when save sample file, but got %v", err)
+		} else if object.Path == "" || object.StorageInterface == nil {
+			t.Errorf("returned object should necessary information")
+		}
+	} else {
+		t.Errorf("No error should happen when opem sample file, but got %v", err)
+	}
+
 	if file, err := os.Open(sampleFile); err == nil {
 		if object, err := storage.Put(fileName2, file); err != nil {
 			t.Errorf("No error should happen when save sample file, but got %v", err)
