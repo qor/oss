@@ -18,7 +18,6 @@ func TestAll(storage oss.StorageInterface, t *testing.T) {
 	fmt.Printf("testing file in %v\n", filepath.Join(storage.GetEndpoint(), randomPath))
 
 	fileName := "/" + filepath.Join(randomPath, "sample.txt")
-	sampleFileName, _ := storage.GetURL("/tmp" + fileName)
 	fileName2 := "/" + filepath.Join(randomPath, "sample2", "sample.txt")
 	exceptObjects := 2
 	sampleFile, _ := filepath.Abs("../tests/sample.txt")
@@ -35,16 +34,11 @@ func TestAll(storage oss.StorageInterface, t *testing.T) {
 	}
 
 	// Put file again
-	if file, err := os.Open(sampleFileName); err == nil {
+	if file, err := storage.GetStream(fileName); err == nil {
 		if object, err := storage.Put(fileName, file); err != nil {
 			t.Errorf("No error should happen when save sample file, but got %v", err)
 		} else if object.Path == "" || object.StorageInterface == nil {
 			t.Errorf("returned object should necessary information")
-		} else {
-			stat, _ := os.Stat(sampleFileName)
-			if stat.Size() == 0 {
-				t.Errorf("put same file error")
-			}
 		}
 	} else {
 		t.Errorf("No error should happen when opem sample file, but got %v", err)
