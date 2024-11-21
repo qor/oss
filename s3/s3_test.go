@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	awss3 "github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/jinzhu/configor"
 	"github.com/qor/oss/s3"
 	"github.com/qor/oss/tests"
@@ -34,11 +34,11 @@ func TestAll(t *testing.T) {
 	tests.TestAll(client, t)
 
 	fmt.Println("testing S3 with private ACL")
-	privateClient := s3.New(&s3.Config{AccessID: config.AccessID, AccessKey: config.AccessKey, Region: config.Region, Bucket: config.Bucket, ACL: awss3.BucketCannedACLPrivate, Endpoint: config.Endpoint})
+	privateClient := s3.New(&s3.Config{AccessID: config.AccessID, AccessKey: config.AccessKey, Region: config.Region, Bucket: config.Bucket, ACL: types.ObjectCannedACLPrivate, Endpoint: config.Endpoint})
 	tests.TestAll(privateClient, t)
 
 	fmt.Println("testing S3 with AuthenticatedRead ACL")
-	authenticatedReadClient := s3.New(&s3.Config{AccessID: config.AccessID, AccessKey: config.AccessKey, Region: config.Region, Bucket: config.Bucket, ACL: awss3.BucketCannedACLAuthenticatedRead, Endpoint: config.Endpoint})
+	authenticatedReadClient := s3.New(&s3.Config{AccessID: config.AccessID, AccessKey: config.AccessKey, Region: config.Region, Bucket: config.Bucket, ACL: types.ObjectCannedACLAuthenticatedRead, Endpoint: config.Endpoint})
 	tests.TestAll(authenticatedReadClient, t)
 }
 
@@ -48,7 +48,7 @@ func TestToRelativePath(t *testing.T) {
 		"https://qor-example.com/myobject.ext":           "/myobject.ext",
 		"//mybucket.s3.amazonaws.com/myobject.ext":       "/myobject.ext",
 		"http://mybucket.s3.amazonaws.com/myobject.ext":  "/myobject.ext",
-		"myobject.ext":                                   "/myobject.ext",
+		"myobject.ext": "/myobject.ext",
 	}
 
 	for url, path := range urlMap {
