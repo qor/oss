@@ -152,6 +152,10 @@ func (client Client) GetStream(path string) (io.ReadCloser, error) {
 		Key:    aws.String(client.ToS3Key(path)),
 	})
 
+	if err != nil {
+		return nil, err
+	}
+
 	return getResponse.Body, err
 }
 
@@ -240,7 +244,7 @@ func (client Client) List(path string) ([]*oss.Object, error) {
 	if err == nil {
 		for _, content := range listObjectsResponse.Contents {
 			objects = append(objects, &oss.Object{
-				Path:             client.ToS3Key(*content.Key),
+				Path:             "/" + client.ToS3Key(*content.Key),
 				Name:             filepath.Base(*content.Key),
 				LastModified:     content.LastModified,
 				StorageInterface: client,
@@ -307,9 +311,7 @@ func (client Client) ToRelativePath(urlPath string) string {
 // GetURL get public accessible URL
 func (client Client) GetURL(path string) (url string, err error) {
 	if client.Config.Endpoint == "" {
-
 		if client.Config.ACL == types.ObjectCannedACLPrivate || client.Config.ACL == types.ObjectCannedACLAuthenticatedRead {
-
 			presignClient := s3.NewPresignClient(client.S3)
 			presignedGetURL, err := presignClient.PresignGetObject(context.TODO(), &s3.GetObjectInput{
 				Bucket: aws.String(client.Config.Bucket),

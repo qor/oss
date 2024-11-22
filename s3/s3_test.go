@@ -58,6 +58,22 @@ func TestToRelativePath(t *testing.T) {
 	}
 }
 
+func TestToS3Key(t *testing.T) {
+	urlMap := map[string]string{
+		"https://mybucket.s3.amazonaws.com/test/myobject.ext": "test/myobject.ext",
+		"https://qor-example.com/myobject.ext":                "myobject.ext",
+		"//mybucket.s3.amazonaws.com/myobject.ext":            "myobject.ext",
+		"http://mybucket.s3.amazonaws.com/myobject.ext":       "myobject.ext",
+		"/test/myobject.ext":                                  "test/myobject.ext",
+	}
+
+	for url, path := range urlMap {
+		if client.ToS3Key(url) != path {
+			t.Errorf("%v's relative path should be %v, but got %v", url, path, client.ToRelativePath(url))
+		}
+	}
+}
+
 func TestToRelativePathWithS3ForcePathStyle(t *testing.T) {
 	urlMap := map[string]string{
 		"https://s3.amazonaws.com/mybucket/myobject.ext": "/myobject.ext",
