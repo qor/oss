@@ -231,17 +231,22 @@ func (client Client) DeleteObjects(paths []string) (err error) {
 func (client Client) List(path string) ([]*oss.Object, error) {
 	var objects []*oss.Object
 	var prefix string
+	var continuationToken *string
 
 	if path != "" {
 		prefix = strings.Trim(path, "/") + "/"
 	}
 
-	listObjectsResponse, err := client.S3.ListObjectsV2(context.Background(), &s3.ListObjectsV2Input{
-		Bucket: aws.String(client.Config.Bucket),
-		Prefix: aws.String(prefix),
-	})
+	for {
+		listObjectsResponse, err := client.S3.ListObjectsV2(context.TODO(), &s3.ListObjectsV2Input{
+			Bucket:            aws.String(client.Config.Bucket),
+			Prefix:            aws.String(prefix),
+			ContinuationToken: continuationToken,
+		})
+		if err != nil {
+			return nil, err
+		}
 
-	if err == nil {
 		for _, content := range listObjectsResponse.Contents {
 			objects = append(objects, &oss.Object{
 				Path:             "/" + client.ToS3Key(*content.Key),
@@ -250,9 +255,15 @@ func (client Client) List(path string) ([]*oss.Object, error) {
 				StorageInterface: client,
 			})
 		}
+
+		if listObjectsResponse.IsTruncated != nil && *listObjectsResponse.IsTruncated {
+			continuationToken = listObjectsResponse.NextContinuationToken
+		} else {
+			break
+		}
 	}
 
-	return objects, err
+	return objects, nil
 }
 
 // GetEndpoint get endpoint, FileSystem's endpoint is /

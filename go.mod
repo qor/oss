@@ -9,6 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.44
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.67.0
 	github.com/aws/aws-sdk-go-v2/service/sts v1.32.4
+	github.com/aws/smithy-go v1.22.0
 	github.com/jinzhu/configor v1.2.1
 	github.com/qiniu/api.v7/v7 v7.8.2
 )
@@ -27,7 +28,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.18.4 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.24.5 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.28.4 // indirect
-	github.com/aws/smithy-go v1.22.0 // indirect
 	github.com/gookit/color v1.3.6 // indirect
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 // indirect
 	golang.org/x/time v0.3.0 // indirect
