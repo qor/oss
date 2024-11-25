@@ -23,7 +23,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
-	smithyendpoints "github.com/aws/smithy-go/endpoints"
 	"github.com/qor/oss"
 )
 
@@ -35,14 +34,17 @@ type Client struct {
 
 // Config S3 client config
 type Config struct {
-	AccessID         string
-	AccessKey        string
-	Region           string
-	Bucket           string
-	SessionToken     string
-	ACL              types.ObjectCannedACL
-	Endpoint         string
-	S3Endpoint       string
+	AccessID     string
+	AccessKey    string
+	Region       string
+	Bucket       string
+	SessionToken string
+	ACL          types.ObjectCannedACL
+	Endpoint     string
+
+	S3Endpoint             string
+	CustomEndpointResolver s3.EndpointResolverV2
+
 	S3ForcePathStyle bool
 	CacheControl     string
 
@@ -67,10 +69,17 @@ func New(cfg *Config) *Client {
 	}
 
 	if cfg.S3Endpoint != "" {
-		s3CfgOptions = append(s3CfgOptions, s3.WithEndpointResolverV2(&endpointResolverV2{
-			Url: cfg.S3Endpoint,
-		}))
+		s3CfgOptions = append(s3CfgOptions,
+			func(o *s3.Options) {
+				o.BaseEndpoint = aws.String(cfg.S3Endpoint)
+			},
+		)
+	}
 
+	if cfg.CustomEndpointResolver != nil {
+		s3CfgOptions = append(s3CfgOptions,
+			s3.WithEndpointResolverV2(cfg.CustomEndpointResolver),
+		)
 	}
 
 	// use role ARN to fetch credentials
@@ -272,12 +281,14 @@ func (client Client) GetEndpoint() string {
 		return client.Config.Endpoint
 	}
 
-	if client.Config.S3Endpoint != "" {
-		return client.Config.S3Endpoint
-	}
-
-	if client.Config.S3ForcePathStyle {
-		return fmt.Sprintf("s3.%s.amazonaws.com/%s", client.Config.Region, client.Config.Bucket)
+	if re, err := client.S3.Options().EndpointResolverV2.ResolveEndpoint(context.Background(), s3.EndpointParameters{
+		Region: aws.String(client.Config.Region),
+	}); err == nil {
+		endpoint := re.URI.String()
+		for _, prefix := range []string{"https://", "http://"} {
+			endpoint = strings.TrimPrefix(endpoint, prefix)
+		}
+		return client.Config.Bucket + "." + endpoint
 	}
 
 	return fmt.Sprintf("%s.s3.%s.amazonaws.com", client.Config.Bucket, client.Config.Region)
@@ -348,23 +359,4 @@ func (client Client) Copy(from, to string) (err error) {
 		Key:        aws.String(to),
 	})
 	return
-}
-
-type endpointResolverV2 struct {
-	Url string
-}
-
-func (r *endpointResolverV2) ResolveEndpoint(
-	ctx context.Context, params s3.EndpointParameters,
-) (
-	endpoint smithyendpoints.Endpoint, err error,
-) {
-
-	u, err := url.Parse(r.Url)
-	if err != nil {
-		return smithyendpoints.Endpoint{}, err
-	}
-	return smithyendpoints.Endpoint{
-		URI: *u,
-	}, nil
 }
