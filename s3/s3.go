@@ -2,9 +2,9 @@ package s3
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime"
 	"net/http"
 	"net/url"
@@ -15,103 +15,124 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/credentials/ec2rolecreds"
-	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
-	"github.com/aws/aws-sdk-go/aws/ec2metadata"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/credentials/ec2rolecreds"
+	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/qor/oss"
 )
 
 // Client S3 storage
 type Client struct {
-	*s3.S3
+	S3     *s3.Client
 	Config *Config
 }
 
 // Config S3 client config
 type Config struct {
-	AccessID         string
-	AccessKey        string
-	Region           string
-	Bucket           string
-	SessionToken     string
-	ACL              string
-	Endpoint         string
-	S3Endpoint       string
+	AccessID     string
+	AccessKey    string
+	Region       string
+	Bucket       string
+	SessionToken string
+	ACL          types.ObjectCannedACL
+	Endpoint     string
+
+	S3Endpoint             string
+	CustomEndpointResolver s3.EndpointResolverV2
+
 	S3ForcePathStyle bool
 	CacheControl     string
 
-	Session *session.Session
-
-	RoleARN string
-}
-
-func ec2RoleAwsCreds(config *Config) *credentials.Credentials {
-	ec2m := ec2metadata.New(session.New(), &aws.Config{
-		HTTPClient: &http.Client{Timeout: 10 * time.Second},
-		Endpoint:   aws.String("http://169.254.169.254/latest"),
-	})
-
-	return credentials.NewCredentials(&ec2rolecreds.EC2RoleProvider{
-		Client: ec2m,
-	})
-}
-
-// Does this need to be publicly exported?
-func EC2RoleAwsConfig(config *Config) *aws.Config {
-	return &aws.Config{
-		Region:      aws.String(config.Region),
-		Credentials: ec2RoleAwsCreds(config),
-	}
+	AwsConfig        *aws.Config
+	RoleARN          string
+	EnableEC2IAMRole bool
 }
 
 // New initialize S3 storage
-func New(config *Config) *Client {
-	if config.ACL == "" {
-		config.ACL = s3.BucketCannedACLPublicRead
+func New(cfg *Config) *Client {
+	if cfg.ACL == "" {
+		cfg.ACL = types.ObjectCannedACLPublicRead // default ACL
 	}
 
-	client := &Client{Config: config}
+	client := &Client{Config: cfg}
 
-	if config.RoleARN != "" {
-		sess := session.Must(session.NewSession())
-		creds := stscreds.NewCredentials(sess, config.RoleARN)
+	s3CfgOptions := []func(o *s3.Options){
+		func(o *s3.Options) {
+			o.Region = cfg.Region
+			o.UsePathStyle = cfg.S3ForcePathStyle
+		},
+	}
 
-		s3Config := &aws.Config{
-			Region:           &config.Region,
-			Endpoint:         &config.S3Endpoint,
-			S3ForcePathStyle: &config.S3ForcePathStyle,
-			Credentials:      creds,
+	if cfg.S3Endpoint != "" {
+		s3CfgOptions = append(s3CfgOptions,
+			func(o *s3.Options) {
+				o.BaseEndpoint = aws.String(cfg.S3Endpoint)
+			},
+		)
+	}
+
+	if cfg.CustomEndpointResolver != nil {
+		s3CfgOptions = append(s3CfgOptions,
+			s3.WithEndpointResolverV2(cfg.CustomEndpointResolver),
+		)
+	}
+
+	// use role ARN to fetch credentials
+	if cfg.RoleARN != "" {
+		awsCfg, err := config.LoadDefaultConfig(context.TODO())
+		if err != nil {
+			panic(err)
 		}
 
-		client.S3 = s3.New(sess, s3Config)
+		provider := stscreds.NewAssumeRoleProvider(sts.NewFromConfig(awsCfg), cfg.RoleARN)
+		creds := aws.NewCredentialsCache(provider)
+
+		s3CfgOptions = append(s3CfgOptions, func(o *s3.Options) {
+			o.Credentials = creds
+		})
+
+		s3Client := s3.NewFromConfig(awsCfg, s3CfgOptions...)
+		client.S3 = s3Client
 		return client
 	}
 
-	s3Config := &aws.Config{
-		Region:           &config.Region,
-		Endpoint:         &config.S3Endpoint,
-		S3ForcePathStyle: &config.S3ForcePathStyle,
+	// use alreay configured aws config
+	if cfg.AwsConfig != nil {
+		s3Client := s3.NewFromConfig(*cfg.AwsConfig, s3CfgOptions...)
+		client.S3 = s3Client
+		return client
 	}
 
-	if config.Session != nil {
-		client.S3 = s3.New(config.Session, s3Config)
-	} else if config.AccessID == "" && config.AccessKey == "" {
-		// use aws default Credentials
-		// s3Config.Credentials = ec2RoleAwsCreds(config)
-		sess := session.Must(session.NewSession())
-		client.S3 = s3.New(sess, s3Config)
-	} else {
-		creds := credentials.NewStaticCredentials(config.AccessID, config.AccessKey, config.SessionToken)
-		if _, err := creds.Get(); err == nil {
-			s3Config.Credentials = creds
-			client.S3 = s3.New(session.New(), s3Config)
-		}
+	aswCfgOptions := []func(*config.LoadOptions) error{
+		config.WithRegion(cfg.Region),
 	}
 
+	// use EC2 IAM role
+	if cfg.EnableEC2IAMRole {
+		aswCfgOptions = append(aswCfgOptions, config.WithCredentialsProvider(
+			ec2rolecreds.New(),
+		))
+	}
+
+	// use static credentials
+	if cfg.AccessID != "" && cfg.AccessKey != "" {
+		aswCfgOptions = append(aswCfgOptions, config.WithCredentialsProvider(
+			credentials.NewStaticCredentialsProvider(cfg.AccessID, cfg.AccessKey, cfg.SessionToken),
+		))
+	}
+
+	awsConfig, err := config.LoadDefaultConfig(context.TODO(), aswCfgOptions...)
+	if err != nil {
+		panic(err)
+	}
+
+	s3Client := s3.NewFromConfig(awsConfig, s3CfgOptions...)
+	client.S3 = s3Client
 	return client
 }
 
@@ -123,7 +144,7 @@ func (client Client) Get(path string) (file *os.File, err error) {
 	pattern := fmt.Sprintf("s3*%s", ext)
 
 	if err == nil {
-		if file, err = ioutil.TempFile("/tmp", pattern); err == nil {
+		if file, err = os.CreateTemp("/tmp", pattern); err == nil {
 			defer readCloser.Close()
 			_, err = io.Copy(file, readCloser)
 			file.Seek(0, 0)
@@ -135,10 +156,14 @@ func (client Client) Get(path string) (file *os.File, err error) {
 
 // GetStream get file as stream
 func (client Client) GetStream(path string) (io.ReadCloser, error) {
-	getResponse, err := client.S3.GetObject(&s3.GetObjectInput{
+	getResponse, err := client.S3.GetObject(context.TODO(), &s3.GetObjectInput{
 		Bucket: aws.String(client.Config.Bucket),
-		Key:    aws.String(client.ToRelativePath(path)),
+		Key:    aws.String(client.ToS3Key(path)),
 	})
+
+	if err != nil {
+		return nil, err
+	}
 
 	return getResponse.Body, err
 }
@@ -149,8 +174,8 @@ func (client Client) Put(urlPath string, reader io.Reader) (*oss.Object, error) 
 		seeker.Seek(0, 0)
 	}
 
-	urlPath = client.ToRelativePath(urlPath)
-	buffer, err := ioutil.ReadAll(reader)
+	key := client.ToS3Key(urlPath)
+	buffer, err := io.ReadAll(reader)
 
 	fileType := mime.TypeByExtension(path.Ext(urlPath))
 	if fileType == "" {
@@ -159,8 +184,8 @@ func (client Client) Put(urlPath string, reader io.Reader) (*oss.Object, error) 
 
 	params := &s3.PutObjectInput{
 		Bucket:        aws.String(client.Config.Bucket), // required
-		Key:           aws.String(urlPath),              // required
-		ACL:           aws.String(client.Config.ACL),
+		Key:           aws.String(key),                  // required
+		ACL:           client.Config.ACL,
 		Body:          bytes.NewReader(buffer),
 		ContentLength: aws.Int64(int64(len(buffer))),
 		ContentType:   aws.String(fileType),
@@ -169,7 +194,7 @@ func (client Client) Put(urlPath string, reader io.Reader) (*oss.Object, error) 
 		params.CacheControl = aws.String(client.Config.CacheControl)
 	}
 
-	_, err = client.S3.PutObject(params)
+	_, err = client.S3.PutObject(context.Background(), params)
 
 	now := time.Now()
 	return &oss.Object{
@@ -182,29 +207,29 @@ func (client Client) Put(urlPath string, reader io.Reader) (*oss.Object, error) 
 
 // Delete delete file
 func (client Client) Delete(path string) error {
-	_, err := client.S3.DeleteObject(&s3.DeleteObjectInput{
+	_, err := client.S3.DeleteObject(context.Background(), &s3.DeleteObjectInput{
 		Bucket: aws.String(client.Config.Bucket),
-		Key:    aws.String(client.ToRelativePath(path)),
+		Key:    aws.String(client.ToS3Key(path)),
 	})
 	return err
 }
 
 // DeleteObjects delete files in bulk
 func (client Client) DeleteObjects(paths []string) (err error) {
-	var objs []*s3.ObjectIdentifier
+	var objs []types.ObjectIdentifier
 	for _, v := range paths {
-		var obj s3.ObjectIdentifier
-		obj.Key = aws.String(strings.TrimPrefix(client.ToRelativePath(v), "/"))
-		objs = append(objs, &obj)
+		var obj types.ObjectIdentifier
+		obj.Key = aws.String(strings.TrimPrefix(client.ToS3Key(v), "/"))
+		objs = append(objs, obj)
 	}
 	input := &s3.DeleteObjectsInput{
 		Bucket: aws.String(client.Config.Bucket),
-		Delete: &s3.Delete{
+		Delete: &types.Delete{
 			Objects: objs,
 		},
 	}
 
-	_, err = client.S3.DeleteObjects(input)
+	_, err = client.S3.DeleteObjects(context.Background(), input)
 	if err != nil {
 		return
 	}
@@ -215,28 +240,39 @@ func (client Client) DeleteObjects(paths []string) (err error) {
 func (client Client) List(path string) ([]*oss.Object, error) {
 	var objects []*oss.Object
 	var prefix string
+	var continuationToken *string
 
 	if path != "" {
 		prefix = strings.Trim(path, "/") + "/"
 	}
 
-	listObjectsResponse, err := client.S3.ListObjectsV2(&s3.ListObjectsV2Input{
-		Bucket: aws.String(client.Config.Bucket),
-		Prefix: aws.String(prefix),
-	})
+	for {
+		listObjectsResponse, err := client.S3.ListObjectsV2(context.TODO(), &s3.ListObjectsV2Input{
+			Bucket:            aws.String(client.Config.Bucket),
+			Prefix:            aws.String(prefix),
+			ContinuationToken: continuationToken,
+		})
+		if err != nil {
+			return nil, err
+		}
 
-	if err == nil {
 		for _, content := range listObjectsResponse.Contents {
 			objects = append(objects, &oss.Object{
-				Path:             client.ToRelativePath(*content.Key),
+				Path:             "/" + client.ToS3Key(*content.Key),
 				Name:             filepath.Base(*content.Key),
 				LastModified:     content.LastModified,
 				StorageInterface: client,
 			})
 		}
+
+		if listObjectsResponse.IsTruncated != nil && *listObjectsResponse.IsTruncated {
+			continuationToken = listObjectsResponse.NextContinuationToken
+		} else {
+			break
+		}
 	}
 
-	return objects, err
+	return objects, nil
 }
 
 // GetEndpoint get endpoint, FileSystem's endpoint is /
@@ -245,15 +281,37 @@ func (client Client) GetEndpoint() string {
 		return client.Config.Endpoint
 	}
 
-	endpoint := client.S3.Endpoint
-	for _, prefix := range []string{"https://", "http://"} {
-		endpoint = strings.TrimPrefix(endpoint, prefix)
+	if re, err := client.S3.Options().EndpointResolverV2.ResolveEndpoint(context.Background(), s3.EndpointParameters{
+		Region: aws.String(client.Config.Region),
+	}); err == nil {
+		endpoint := re.URI.String()
+		for _, prefix := range []string{"https://", "http://"} {
+			endpoint = strings.TrimPrefix(endpoint, prefix)
+		}
+		return client.Config.Bucket + "." + endpoint
 	}
 
-	return client.Config.Bucket + "." + endpoint
+	return fmt.Sprintf("%s.s3.%s.amazonaws.com", client.Config.Bucket, client.Config.Region)
 }
 
 var urlRegexp = regexp.MustCompile(`(https?:)?//((\w+).)+(\w+)/`)
+
+// ToS3Key convert URL path to S3 key
+func (client Client) ToS3Key(urlPath string) string {
+	if urlRegexp.MatchString(urlPath) {
+		if u, err := url.Parse(urlPath); err == nil {
+			if client.Config.S3ForcePathStyle { // First part of path will be bucket name
+				return strings.TrimPrefix(u.Path, "/"+client.Config.Bucket)
+			}
+			return strings.TrimPrefix(u.Path, "/")
+		}
+	}
+
+	if client.Config.S3ForcePathStyle { // First part of path will be bucket name
+		return strings.TrimPrefix(urlPath, "/"+client.Config.Bucket+"/")
+	}
+	return strings.TrimPrefix(urlPath, "/")
+}
 
 // ToRelativePath process path to relative path
 func (client Client) ToRelativePath(urlPath string) string {
@@ -274,14 +332,19 @@ func (client Client) ToRelativePath(urlPath string) string {
 
 // GetURL get public accessible URL
 func (client Client) GetURL(path string) (url string, err error) {
-	if client.Endpoint == "" {
-		if client.Config.ACL == s3.BucketCannedACLPrivate || client.Config.ACL == s3.BucketCannedACLAuthenticatedRead {
-			getResponse, _ := client.S3.GetObjectRequest(&s3.GetObjectInput{
+	if client.Config.Endpoint == "" {
+		if client.Config.ACL == types.ObjectCannedACLPrivate || client.Config.ACL == types.ObjectCannedACLAuthenticatedRead {
+			presignClient := s3.NewPresignClient(client.S3)
+			presignedGetURL, err := presignClient.PresignGetObject(context.TODO(), &s3.GetObjectInput{
 				Bucket: aws.String(client.Config.Bucket),
-				Key:    aws.String(client.ToRelativePath(path)),
+				Key:    aws.String(client.ToS3Key(path)),
+			}, func(opts *s3.PresignOptions) {
+				opts.Expires = 1 * time.Hour
 			})
 
-			return getResponse.Presign(1 * time.Hour)
+			if err == nil && presignedGetURL != nil {
+				return presignedGetURL.URL, nil
+			}
 		}
 	}
 
@@ -290,7 +353,7 @@ func (client Client) GetURL(path string) (url string, err error) {
 
 // Copy copy s3 file from "from" to "to"
 func (client Client) Copy(from, to string) (err error) {
-	_, err = client.S3.CopyObject(&s3.CopyObjectInput{
+	_, err = client.S3.CopyObject(context.Background(), &s3.CopyObjectInput{
 		Bucket:     aws.String(client.Config.Bucket),
 		CopySource: aws.String(from),
 		Key:        aws.String(to),
