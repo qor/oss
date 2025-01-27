@@ -2,6 +2,8 @@ package s3_test
 
 import (
 	"fmt"
+	"io"
+	"strings"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
@@ -90,5 +92,110 @@ func TestToRelativePathWithS3ForcePathStyle(t *testing.T) {
 		if client.ToRelativePath(url) != path {
 			t.Errorf("%v's relative path should be %v, but got %v", url, path, client.ToRelativePath(url))
 		}
+	}
+}
+
+const testDir = "/unit_test_dir"
+const testPath = testDir + "/testfile.txt"
+const testPath2 = testDir + "/testfile2.txt"
+const testPath3 = testDir + "/testfile3.txt"
+
+const testContent = "test content"
+
+func TestAllOperations(t *testing.T) {
+	client := s3.New(&s3.Config{AccessID: config.AccessID, AccessKey: config.AccessKey, Region: config.Region, Bucket: config.Bucket, Endpoint: config.Endpoint})
+
+	// Step 1: Put testPath
+	reader := strings.NewReader(testContent)
+	_, err := client.Put(testPath, reader)
+	if err != nil {
+		t.Errorf("Put testPath failed: %v", err)
+	}
+
+	// Step 2: Get testPath
+	file, err := client.Get(testPath)
+	if err != nil {
+		t.Errorf("Get testPath failed: %v", err)
+	}
+	defer file.Close()
+
+	fileContent, err := io.ReadAll(file)
+	if err != nil {
+		t.Errorf("Expected no error reading from file, got %v", err)
+	}
+
+	if string(fileContent) != testContent {
+		t.Error("File content does not match the original content")
+	}
+
+	// Step 3: Put testPath2
+	reader2 := strings.NewReader(testContent)
+	_, err = client.Put(testPath2, reader2)
+	if err != nil {
+		t.Errorf("Put testPath2 failed: %v", err)
+	}
+
+	// Step 4: GetStream testPath2
+	stream, err := client.GetStream(testPath2)
+	if err != nil {
+		t.Errorf("GetStream testPath2 failed: %v", err)
+	}
+	if stream == nil {
+		t.Error("Expected stream to be non-nil")
+	}
+
+	retrievedContent, err := io.ReadAll(stream)
+	if err != nil {
+		t.Errorf("Expected no error reading from stream, got %v", err)
+	}
+
+	if string(retrievedContent) != testContent {
+		t.Error("Retrieved content does not match the original content")
+	}
+
+	// Step 5: Copy testPath2 to testPath3
+	err = client.Copy(testPath2, testPath3)
+	if err != nil {
+		t.Errorf("Copy testPath2 to testPath3 failed: %v", err)
+	}
+
+	// Step 6: List
+	objects, err := client.List(testDir)
+	if err != nil {
+		t.Errorf("List failed: %v", err)
+	}
+	if len(objects) != 3 {
+		t.Error("Expected at 3 objects in the list, got", len(objects))
+	}
+
+	// Step 7: Delete testPath
+	err = client.Delete(testPath)
+	if err != nil {
+		t.Errorf("Delete testPath failed: %v", err)
+	}
+
+	// Step 8: List
+	objects, err = client.List(testDir)
+	if err != nil {
+		t.Errorf("List after delete testPath failed: %v", err)
+	}
+
+	if len(objects) != 2 {
+		t.Error("Expected at 2 objects in the list, got", len(objects))
+	}
+
+	// Step 9: DeleteObjects (delete testPath2 and testPath3)
+	err = client.DeleteObjects([]string{testPath2, testPath3})
+	if err != nil {
+		t.Errorf("DeleteObjects failed: %v", err)
+	}
+
+	// Step 10: List
+	objects, err = client.List(testDir)
+	if err != nil {
+		t.Errorf("List after DeleteObjects failed: %v", err)
+	}
+	if len(objects) != 0 {
+		t.Error("Expected no objects in the list after deletion, got", len(objects))
 	}
 }

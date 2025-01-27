@@ -138,12 +138,14 @@ func New(cfg *Config) *Client {
 
 // Get receive file with given path
 func (client Client) Get(path string) (file *os.File, err error) {
+	// already retried in GetStream
 	readCloser, err := client.GetStream(path)
 
 	ext := filepath.Ext(path)
 	pattern := fmt.Sprintf("s3*%s", ext)
 
 	if err == nil {
+		// can't "defer file.Close()" here, because it will be used after client.Get
 		if file, err = os.CreateTemp("/tmp", pattern); err == nil {
 			defer readCloser.Close()
 			_, err = io.Copy(file, readCloser)
@@ -156,16 +158,23 @@ func (client Client) Get(path string) (file *os.File, err error) {
 
 // GetStream get file as stream
 func (client Client) GetStream(path string) (io.ReadCloser, error) {
-	getResponse, err := client.S3.GetObject(context.TODO(), &s3.GetObjectInput{
-		Bucket: aws.String(client.Config.Bucket),
-		Key:    aws.String(client.ToS3Key(path)),
+	var body io.ReadCloser
+	err := Retry(3, time.Second, func() error {
+		var retryErr error
+		getResponse, retryErr := client.S3.GetObject(context.TODO(), &s3.GetObjectInput{
+			Bucket: aws.String(client.Config.Bucket),
+			Key:    aws.String(client.ToS3Key(path)),
+		})
+
+		if retryErr != nil {
+			return retryErr
+		}
+
+		body = getResponse.Body
+		return nil
 	})
 
-	if err != nil {
-		return nil, err
-	}
-
-	return getResponse.Body, err
+	return body, err
 }
 
 // Put store a reader into given path
@@ -174,14 +183,17 @@ func (client Client) Put(urlPath string, reader io.Reader) (*oss.Object, error) 
 		seeker.Seek(0, 0)
 	}
 
-	key := client.ToS3Key(urlPath)
 	buffer, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
 
 	fileType := mime.TypeByExtension(path.Ext(urlPath))
 	if fileType == "" {
 		fileType = http.DetectContentType(buffer)
 	}
 
+	key := client.ToS3Key(urlPath)
 	params := &s3.PutObjectInput{
 		Bucket:        aws.String(client.Config.Bucket), // required
 		Key:           aws.String(key),                  // required
@@ -190,11 +202,16 @@ func (client Client) Put(urlPath string, reader io.Reader) (*oss.Object, error) 
 		ContentLength: aws.Int64(int64(len(buffer))),
 		ContentType:   aws.String(fileType),
 	}
+
 	if client.Config.CacheControl != "" {
 		params.CacheControl = aws.String(client.Config.CacheControl)
 	}
 
-	_, err = client.S3.PutObject(context.Background(), params)
+	err = Retry(3, time.Second, func() error {
+		var retryErr error
+		_, retryErr = client.S3.PutObject(context.Background(), params)
+		return retryErr
+	})
 
 	now := time.Now()
 	return &oss.Object{
@@ -207,15 +224,18 @@ func (client Client) Put(urlPath string, reader io.Reader) (*oss.Object, error) 
 
 // Delete delete file
 func (client Client) Delete(path string) error {
-	_, err := client.S3.DeleteObject(context.Background(), &s3.DeleteObjectInput{
-		Bucket: aws.String(client.Config.Bucket),
-		Key:    aws.String(client.ToS3Key(path)),
+	return Retry(3, time.Second, func() error {
+		var retryErr error
+		_, retryErr = client.S3.DeleteObject(context.TODO(), &s3.DeleteObjectInput{
+			Bucket: aws.String(client.Config.Bucket),
+			Key:    aws.String(client.ToS3Key(path)),
+		})
+		return retryErr
 	})
-	return err
 }
 
 // DeleteObjects delete files in bulk
-func (client Client) DeleteObjects(paths []string) (err error) {
+func (client Client) DeleteObjects(paths []string) error {
 	var objs []types.ObjectIdentifier
 	for _, v := range paths {
 		var obj types.ObjectIdentifier
@@ -229,11 +249,11 @@ func (client Client) DeleteObjects(paths []string) (err error) {
 		},
 	}
 
-	_, err = client.S3.DeleteObjects(context.Background(), input)
-	if err != nil {
-		return
-	}
-	return
+	return Retry(3, time.Second, func() error {
+		var retryErr error
+		_, retryErr = client.S3.DeleteObjects(context.Background(), input)
+		return retryErr
+	})
 }
 
 // List list all objects under current path
@@ -247,11 +267,17 @@ func (client Client) List(path string) ([]*oss.Object, error) {
 	}
 
 	for {
-		listObjectsResponse, err := client.S3.ListObjectsV2(context.TODO(), &s3.ListObjectsV2Input{
-			Bucket:            aws.String(client.Config.Bucket),
-			Prefix:            aws.String(prefix),
-			ContinuationToken: continuationToken,
+		var listObjectsResponse *s3.ListObjectsV2Output
+		err := Retry(3, time.Second, func() error {
+			var retryErr error
+			listObjectsResponse, retryErr = client.S3.ListObjectsV2(context.TODO(), &s3.ListObjectsV2Input{
+				Bucket:            aws.String(client.Config.Bucket),
+				Prefix:            aws.String(prefix),
+				ContinuationToken: continuationToken,
+			})
+			return retryErr
 		})
+
 		if err != nil {
 			return nil, err
 		}
@@ -352,11 +378,14 @@ func (client Client) GetURL(path string) (url string, err error) {
 }
 
 // Copy copy s3 file from "from" to "to"
-func (client Client) Copy(from, to string) (err error) {
-	_, err = client.S3.CopyObject(context.Background(), &s3.CopyObjectInput{
-		Bucket:     aws.String(client.Config.Bucket),
-		CopySource: aws.String(from),
-		Key:        aws.String(to),
+func (client Client) Copy(from, to string) error {
+	return Retry(3, time.Second, func() error {
+		var retryErr error
+		_, retryErr = client.S3.CopyObject(context.Background(), &s3.CopyObjectInput{
+			Bucket:     aws.String(client.Config.Bucket),
+			CopySource: aws.String(from),
+			Key:        aws.String(to),
+		})
+		return retryErr
 	})
-	return
 }
