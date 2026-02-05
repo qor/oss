@@ -1,19 +1,20 @@
 package tencent
 
 import (
-	"os"
-	"github.com/qor/oss"
-	"io"
+	"bytes"
+	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
-	"path/filepath"
-	"time"
-	"errors"
-	"strings"
-	"bytes"
-	"regexp"
 	"net/url"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"time"
+
+	"github.com/qor/oss"
 )
 
 var _ oss.StorageInterface = (*Client)(nil)
@@ -73,7 +74,7 @@ func (client Client) GetStream(path string) (io.ReadCloser, error) {
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil,errors.New("get file fail")
+		return nil, errors.New("get file fail")
 	}
 	return resp.Body, nil
 }
@@ -98,7 +99,7 @@ func (client Client) Put(path string, body io.Reader) (*oss.Object, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Host", client.GetEndpoint())
+	req.Header.Set("Host", client.getHost())
 	req.Header.Set("Authorization", client.authorization(req))
 	result, err := client.Client.Do(req)
 	if err != nil {
@@ -125,7 +126,7 @@ func (client Client) Delete(path string) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Host", client.GetEndpoint())
+	req.Header.Set("Host", client.getHost())
 	req.Header.Set("Authorization", client.authorization(req))
 	result, err := client.Client.Do(req)
 	if err != nil {
@@ -166,7 +167,14 @@ func (client Client) GetEndpoint() string {
 	return fmt.Sprintf("%s.cos.%s.myqcloud.com", client.Config.Bucket, client.Config.Region)
 }
 
+func (client Client) getHost() string {
+	return fmt.Sprintf("%s.cos.%s.myqcloud.com", client.Config.Bucket, client.Config.Region)
+}
+
 func (client Client) GetURL(path string) (string, error) {
+	if client.Config.Endpoint != "" {
+		return fmt.Sprintf("%s/%s", client.Config.Endpoint, client.ToRelativePath(path)), nil
+	}
 	return fmt.Sprintf("%s%s", client.getUrl(), client.ToRelativePath(path)), nil
 }
 
