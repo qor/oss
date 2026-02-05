@@ -1,6 +1,6 @@
 module github.com/qor/oss
 
-go 1.21
+go 1.24
 
 require (
 	github.com/aliyun/aliyun-oss-go-sdk v2.2.7+incompatible
