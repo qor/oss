@@ -1,1 +1,4 @@
 test_env
+.env
+go.mod
+go.sum
